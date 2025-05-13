@@ -1,12 +1,37 @@
-# React + Vite
+# SI Tracker App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+「SI番号」単位で輸入商品の現在地や納期ステータスを管理するアプリです。
 
-Currently, two official plugins are available:
+## 🧾 概要
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+輸入業務で扱う「スイッチインボイス番号（SI番号）」をキーに、以下の情報を一元管理します：
 
-## Expanding the ESLint configuration
+- 出荷日
+- 到着予定日
+- 船名
+- 現在地（例：通関中、保税倉庫など）
+- 遅延ステータス
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 💡 背景
+
+現場での納期管理はメール・Excel・口頭のやり取りに依存しており、情報の抜け漏れ・確認工数が大きな課題です。  
+本アプリはそれらを軽減し、輸入プロセスを視覚的に・正確に把握できることを目的としています。
+
+## 🛠 技術スタック
+
+- React + Vite
+- 状態管理：未定（今後検討）
+- データ：一旦モック（将来的にAPI連携予定）
+
+## 🔧 開発予定機能
+
+- SIステータス表示カード（第一ステップ）
+- SI一覧テーブル
+- 遅延フィルター・アラート
+- Excel/CSVエクスポート
+- ユーザーごとの管理画面（将来）
+
+## 📝 今後の構想
+
+- Shopifyアプリとしての統合
+- 日本の中小企業の輸入業務DX化への応用
