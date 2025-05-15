@@ -2,42 +2,84 @@
 import { useState } from 'react';
 import StatusCard from './components/StatusCard';
 import StatusTable from './components/StatusTable';
+import shipments from './data/data'; // 拡張子 .js は省略可能
+
 
 function App() {
   const [viewMode, setViewMode] = useState('card');
 
-  const shipments = [
-    { siNumber: '12345', status: '出荷済', eta: '5月20日'},
-    { siNumber: '67890', status: '通関中', eta: '5月23日'},
 
-  ]
+
+  // ETAの早い順でソートして上位2件を抽出
+  const upcomingShipments = shipments
+    .slice() // 元データを変更しないためのコピー
+    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+    .slice(0, 2);
+
   return (
-    <div style={{ padding: '2rem' }}>
+    <div className="p-10 bg-red-200 text-center" style={{ padding: '2rem' }}>
       <h1>入荷ステータス一覧</h1>
 
-       {/* 表示切り替えボタン */}
-
-       <div style={{ marginBottom: '1rem' }}>
+      {/* 表示切り替えボタン */}
+      <div style={{ marginBottom: '1rem' }}>
         <button onClick={() => setViewMode('card')} style={{ marginRight: '1rem' }}>
           カード表示
         </button>
-          <button onClick={() => setViewMode('table')}>テーブル表示</button>
-       </div>
+        <button onClick={() => setViewMode('table')}>テーブル表示</button>
+      </div>
 
-       {/* 表示形式に応じて切り替え */}
-
-       {viewMode === 'card' ? (
-        <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap'}}>
+      {/* 表示形式に応じて切り替え */}
+      {viewMode === 'card' ? (
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {shipments.map((s) => (
             <StatusCard key={s.siNumber} {...s} />
           ))}
-        </div>  
-       ):(
+        </div>
+      ) : (
         <StatusTable shipments={shipments} />
-       )}
+      )}
 
-      
+      {/* ETAが近い上位2件のリスト表示 */}
+      <div style={{ marginTop: '2rem' }}>
+        <h2>近日入荷予定の出荷</h2>
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {upcomingShipments.map((s) => (
+            <li key={s.siNumber}>
+              {s.siNumber} - ETA: {s.eta}
+            </li>
+          ))}
+        </ul>
+      </div>
+      // ～今までのコードはそのまま～
+
+{/* ここから新UIセクションを追加 */}
+<div style={{ marginTop: '3rem' }}>
+  <h2>詳細表示セクション（例：クリックで情報表示）</h2>
+
+  <div className="flex justify-center gap-4 mt-4">
+    <button
+      onClick={() => alert('SI詳細を表示')}
+      className="bg-blue-500 text-white px-4 py-2 rounded"
+    >
+      SI番号をクリック（モーダル想定）
+    </button>
+    <button
+      onClick={() => alert('商品情報をソート表示')}
+      className="bg-green-500 text-white px-4 py-2 rounded"
+    >
+      商品別の入荷予定
+    </button>
+    <button
+      onClick={() => alert('ETAで船積み情報表示')}
+      className="bg-purple-500 text-white px-4 py-2 rounded"
+    >
+      ETAをクリック（ETD・遅延など）
+    </button>
+  </div>
+</div>
+
     </div>
+    
   );
 }
 
