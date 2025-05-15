@@ -1,4 +1,4 @@
-function StatusTable({ shipments }) {
+function StatusTable({ shipments, onSelectShipment }) {
     return (
         <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -11,7 +11,12 @@ function StatusTable({ shipments }) {
             <tbody>
                 {shipments.map((s) => (
                     <tr key={s.siNumber}>
-                        <td>{s.siNumber}</td>
+                        <td
+                           className="text-blue-600 cursor-pointer"
+                           onClick={() => onSelectShipment(s)}
+                         >
+                         {s.siNumber}
+                        </td>
                         <td>{s.status}</td>
                         <td>{s.eta}</td>
 

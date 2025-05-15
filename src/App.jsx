@@ -2,12 +2,13 @@
 import { useState } from 'react';
 import StatusCard from './components/StatusCard';
 import StatusTable from './components/StatusTable';
+import Modal from './components/Modal';
 import shipments from './data/data'; // 拡張子 .js は省略可能
 
 
 function App() {
   const [viewMode, setViewMode] = useState('card');
-
+  const [selectedShipment, setSelectedShipment] = useState(null);
 
 
   // ETAの早い順でソートして上位2件を抽出
@@ -32,11 +33,18 @@ function App() {
       {viewMode === 'card' ? (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {shipments.map((s) => (
-            <StatusCard key={s.siNumber} {...s} />
+             <StatusCard
+             key={s.siNumber}
+             {...s}
+             onSelectShipment={() => setSelectedShipment(s)} // 追加
+           />
           ))}
         </div>
       ) : (
-        <StatusTable shipments={shipments} />
+        <StatusTable 
+        shipments={shipments} 
+        onSelectShipment={(shipment) => setSelectedShipment(shipment)}
+        />
       )}
 
       {/* ETAが近い上位2件のリスト表示 */}
@@ -50,7 +58,7 @@ function App() {
           ))}
         </ul>
       </div>
-      // ～今までのコードはそのまま～
+      
 
 {/* ここから新UIセクションを追加 */}
 <div style={{ marginTop: '3rem' }}>
@@ -58,7 +66,7 @@ function App() {
 
   <div className="flex justify-center gap-4 mt-4">
     <button
-      onClick={() => alert('SI詳細を表示')}
+      onClick={() => setSelectedShipment(shipments[0])}
       className="bg-blue-500 text-white px-4 py-2 rounded"
     >
       SI番号をクリック（モーダル想定）
@@ -77,6 +85,9 @@ function App() {
     </button>
   </div>
 </div>
+     
+      {/* モーダル表示 */}
+      <Modal shipment={selectedShipment} onClose={() => setSelectedShipment(null)} />
 
     </div>
     
