@@ -34,7 +34,7 @@ function App() {
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           {shipments.map((s) => (
              <StatusCard
-             key={s.siNumber}
+             key={s.si_number}
              {...s}
              onSelectShipment={() => setSelectedShipment(s)} // 追加
            />
@@ -52,9 +52,9 @@ function App() {
         <h2>近日入荷予定の出荷</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {upcomingShipments.map((s) => (
-            <li key={s.siNumber} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
+            <li key={s.si_number} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
             <span onClick={() => setSelectedShipment(s)}>
-              {s.siNumber} - <strong>ETA:</strong> {s.eta}
+              {s.si_number} - <strong>ETA:</strong> {s.eta}
             </span>
             </li>
           ))}

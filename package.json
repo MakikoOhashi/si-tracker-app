@@ -12,6 +12,7 @@
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./dist/output.css --watch"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
