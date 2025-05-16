@@ -52,8 +52,10 @@ function App() {
         <h2>近日入荷予定の出荷</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {upcomingShipments.map((s) => (
-            <li key={s.siNumber}>
-              {s.siNumber} - ETA: {s.eta}
+            <li key={s.siNumber} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
+            <span onClick={() => setSelectedShipment(s)}>
+              {s.siNumber} - <strong>ETA:</strong> {s.eta}
+            </span>
             </li>
           ))}
         </ul>
