@@ -28,10 +28,22 @@ const overlayStyle = {
 const Modal = ({ shipment, onClose }) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState(shipment);
+  const [fileUrl, setFileUrl] = useState(''); // ファイルURLを保存するステート
+
 
   useEffect(() => {
     if (shipment) {
       setFormData(shipment);  // shipmentが来てから初期化
+      if (shipment.invoice_file_path) { // 例えばinvoice_file_pathに保存パスがあれば
+        // Supabase Storageの公開URLを生成
+        const url = supabase
+          .storage
+          .from('shipment-files')
+          .getPublicUrl(shipment.invoice_file_path).publicURL;
+        setFileUrl(url);
+      } else {
+        setFileUrl('');
+      }
     }
   }, [shipment]);
 
@@ -112,6 +124,7 @@ const Modal = ({ shipment, onClose }) => {
             <label>メモ:
               <textarea name="memo" value={formData.memo || ''} onChange={handleChange} />
             </label>
+            <br />
             <label>アーカイブ:
               <input
                 type="checkbox"
@@ -125,6 +138,45 @@ const Modal = ({ shipment, onClose }) => {
                 }
               />
             </label>
+            <br />
+            <label>インボイスファイル:
+              <input
+                type="file"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+
+                  const fileExt = file.name.split('.').pop();
+                  const filePath = `${formData.si_number}/invoice.${fileExt}`;
+
+                  const { error: uploadError } = await supabase.storage
+                    .from('shipment-files')
+                    .upload(filePath, file, { upsert: true });
+
+                  if (uploadError) {
+                    alert('アップロード失敗');
+                    console.error(uploadError);
+                    return;
+                  }
+
+                  const { data: { publicUrl } } = supabase.storage
+                    .from('shipment-files')
+                    .getPublicUrl(filePath);
+
+                  setFormData((prev) => ({
+                    ...prev,
+                    invoice_url: publicUrl,
+                  }));
+
+                  alert('アップロード完了！');
+                }}
+              />
+            </label>
+
+            {formData.invoice_url && (
+              <p><a href={formData.invoice_url} target="_blank" rel="noopener noreferrer">📄 アップロード済みファイルを見る</a></p>
+            )}
+
             <br />
             <button onClick={handleSave}>💾 保存</button>
             <button onClick={() => setEditMode(false)}>キャンセル</button>
@@ -141,7 +193,14 @@ const Modal = ({ shipment, onClose }) => {
             <p><strong>仕入れ先:</strong> {shipment.supplier_name}</p>
             <p><strong>メモ:</strong> {shipment.memo || 'なし'}</p>
             <p><strong>アーカイブ:</strong> {shipment.is_archived ? '✅' : '❌'}</p>
-            <button onClick={() => setEditMode(true)}>✎ 編集</button>
+            {shipment.invoice_url && (
+            <p>
+              <a href={shipment.invoice_url} target="_blank" rel="noopener noreferrer">
+                📎 添付ファイルを見る
+              </a>
+            </p>
+            )}
+                <button onClick={() => setEditMode(true)}>✎ 編集</button>
           </>
         )}
       </div>
