@@ -4,7 +4,7 @@
 
 ## 🧾 概要
 
-輸入業務で扱う「スイッチインボイス番号（SI番号）」をキーに、以下の情報を一元管理します：
+輸入業務で扱う「スイッチインボイス/Shiping Instruction番号（SI番号）」をキーに、以下の情報を一元管理します：
 
 - 出荷日
 - 到着予定日
@@ -35,3 +35,25 @@
 
 - Shopifyアプリとしての統合
 - 日本の中小企業の輸入業務DX化への応用
+
+## 📦 Database Schema (ER Diagram)
+
+### shipments table
+
+| Column Name      | Type     | Description                |
+|------------------|----------|----------------------------|
+| `si_number`      | text     | Primary key, SI identifier |
+| `status`         | text     | Shipping status            |
+| `transport_type` | text     | Shipping method (air/sea)  |
+| `etd`            | date     | Estimated Time of Departure |
+| `eta`            | date     | Estimated Time of Arrival  |
+| `delayed`        | boolean  | Indicates delay (true/false) |
+| `clearance_date` | date     | Customs clearance date     |
+| `arrival_date`   | date     | Arrival at warehouse       |
+| `supplier_name`  | text     | Supplier's name            |
+| `memo`           | text     | Free memo field            |
+
+### 🔧 Notes
+
+- `si_number` is the unique identifier for each shipment and serves as the primary key.
+- Future enhancement: consider linking to `invoices` or `users` for more advanced tracking.
