@@ -1,15 +1,16 @@
 // src/App.jsx
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
 import StatusCard from './components/StatusCard';
 import StatusTable from './components/StatusTable';
 import Modal from './components/Modal';
-import shipments from './data/data'; // 拡張子 .js は省略可能
+
 
 
 function App() {
   const [viewMode, setViewMode] = useState('card');
   const [selectedShipment, setSelectedShipment] = useState(null);
-
+  const [shipments, setShipments] = useState([]);
 
   // ETAの早い順でソートして上位2件を抽出
   const upcomingShipments = shipments
@@ -17,6 +18,21 @@ function App() {
     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
     .slice(0, 2);
 
+// 🔽 useEffectはここで書く
+useEffect(() => {
+  const fetchData = async () => {
+    const { data, error } = await supabase.from('shipments').select('*');
+    if (error) {
+      console.error('データ取得エラー:', error);
+    } else {
+      setShipments(data);
+    }
+  };
+
+  fetchData();
+}, []); // ← 初回マウント時だけ実行
+
+    
   return (
     <div className="p-10 bg-red-200 text-center" style={{ padding: '2rem' }}>
       <h1>入荷ステータス一覧</h1>
@@ -94,6 +110,7 @@ function App() {
     </div>
     
   );
+  
 }
 
 export default App;
