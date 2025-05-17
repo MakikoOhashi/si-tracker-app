@@ -112,6 +112,19 @@ const Modal = ({ shipment, onClose }) => {
             <label>メモ:
               <textarea name="memo" value={formData.memo || ''} onChange={handleChange} />
             </label>
+            <label>アーカイブ:
+              <input
+                type="checkbox"
+                name="is_archived"
+                checked={formData.is_archived || false}
+                onChange={(e) =>
+                setFormData((prev) => ({
+                ...prev,
+                is_archived: e.target.checked,
+                }))
+                }
+              />
+            </label>
             <br />
             <button onClick={handleSave}>💾 保存</button>
             <button onClick={() => setEditMode(false)}>キャンセル</button>
@@ -127,6 +140,7 @@ const Modal = ({ shipment, onClose }) => {
             <p><strong>倉庫着日:</strong> {shipment.arrival_date || '未定'}</p>
             <p><strong>仕入れ先:</strong> {shipment.supplier_name}</p>
             <p><strong>メモ:</strong> {shipment.memo || 'なし'}</p>
+            <p><strong>アーカイブ:</strong> {shipment.is_archived ? '✅' : '❌'}</p>
             <button onClick={() => setEditMode(true)}>✎ 編集</button>
           </>
         )}

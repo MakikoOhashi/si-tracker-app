@@ -1,5 +1,5 @@
 // src/components/StatusCard.jsx
-function StatusCard({ siNumber, status, eta, onSelectShipment }) {
+function StatusCard({ si_number, status, eta, onSelectShipment }) {
     return (
       <div style={{
         border: '1px solid #ddd',
@@ -13,9 +13,9 @@ function StatusCard({ siNumber, status, eta, onSelectShipment }) {
         className="text-lg font-bold cursor-pointer text-blue-600"
         onClick={onSelectShipment}
         >
-        SI: {siNumber}
+        SI: {si_number}
         </h3>
-        <strong>SI番号：</strong>#{siNumber}<br />
+        <strong>SI番号：</strong>#{si_number}<br />
         <strong>ステータス：</strong>{status}<br />
         <strong>到着予定日：</strong>{eta}
       </div>
