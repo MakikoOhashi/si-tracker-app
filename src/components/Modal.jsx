@@ -51,7 +51,7 @@ const Modal = ({ shipment, onClose }) => {
       // Supabaseに存在しないカラムを除外
   const { invoiceFile, siFile, items, ...safeData } = formData;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('shipments')
       .upsert([safeData]); // SI NumberをPKにしていれば更新になる
 
