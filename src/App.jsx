@@ -12,11 +12,16 @@ function App() {
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [shipments, setShipments] = useState([]);
 
-  // ETAの早い順でソートして上位2件を抽出
-  const upcomingShipments = shipments
-    .slice() // 元データを変更しないためのコピー
-    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
-    .slice(0, 2);
+  // 🔽 fetchDataをuseEffect外にも定義
+  const fetchData = async () => {
+    const { data, error } = await supabase.from('shipments').select('*');
+    if (error) {
+      console.error('データ取得エラー:', error);
+    } else {
+      setShipments(data);
+    }
+  };
+
 
 // 🔽 useEffectはここで書く
 useEffect(() => {
@@ -32,6 +37,17 @@ useEffect(() => {
   fetchData();
 }, []); // ← 初回マウント時だけ実行
 
+  // 🔽 モーダルを閉じる時（または保存完了時）にデータ再取得
+  const handleModalClose = () => {
+    setSelectedShipment(null);
+    fetchData();
+  };
+
+  // ETAの早い順でソートして上位2件を抽出
+  const upcomingShipments = shipments
+    .slice()
+    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+    .slice(0, 2);
     
   return (
     <div className="p-10 bg-red-200 text-center" style={{ padding: '2rem' }}>
