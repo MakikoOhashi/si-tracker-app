@@ -76,6 +76,7 @@ const Modal = ({ shipment, onClose }) => {
       safeData.pl_url = formData.pl_url;
       safeData.si_url = formData.si_url;
       safeData.other_url = formData.other_url;
+      safeData.items = formData.items;
 
     const { data, error } = await supabase
       .from('shipments')
@@ -180,6 +181,7 @@ const Modal = ({ shipment, onClose }) => {
         <button onClick={onClose} style={{ float: 'right' }}>×</button>
         <h2>SI詳細: {shipment.si_number}</h2>
 
+{/*  編集モード */}
         {editMode ? (
           <>
             <label>ステータス:
@@ -235,6 +237,56 @@ const Modal = ({ shipment, onClose }) => {
               />
             </label>
             <br />
+            // 編集モードのitems管理
+            <label>積載商品リスト:</label>
+            {(formData.items || []).map((item, idx) => (
+              <div key={idx} style={{ marginBottom: 8 }}>
+                <input
+                  placeholder="商品名"
+                  value={item.name || ""}
+                  onChange={e => {
+                    const newItems = [...(formData.items || [])];
+                    newItems[idx].name = e.target.value;
+                    setFormData(prev => ({ ...prev, items: newItems }));
+                  }}
+                  style={{ marginRight: 8 }}
+                />
+                <input
+                  type="number"
+                  placeholder="数量"
+                  value={item.quantity || ""}
+                  onChange={e => {
+                    const newItems = [...(formData.items || [])];
+                    newItems[idx].quantity = Number(e.target.value);
+                    setFormData(prev => ({ ...prev, items: newItems }));
+                  }}
+                  style={{ width: 80, marginRight: 8 }}
+                  min={1}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newItems = [...(formData.items || [])];
+                    newItems.splice(idx, 1);
+                    setFormData(prev => ({ ...prev, items: newItems }));
+                  }}
+                >
+                  削除
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setFormData(prev => ({
+                  ...prev,
+                  items: [...(prev.items || []), { name: "", quantity: "" }]
+                }));
+              }}
+            >
+              ＋商品追加
+            </button>
+            <br />
 
             {/* ファイルアップロード共通化 */}
             {FILE_TYPES.map(({ label, key }) => (
@@ -267,6 +319,7 @@ const Modal = ({ shipment, onClose }) => {
             <button onClick={() => setEditMode(false)}>キャンセル</button>
           </>
         ) : (
+          
           <>
             <p><strong>ステータス:</strong> {shipment.status}</p>
             <p><strong>輸送手段:</strong> {shipment.transportType}</p>
@@ -279,6 +332,12 @@ const Modal = ({ shipment, onClose }) => {
             <p><strong>メモ:</strong> {shipment.memo || 'なし'}</p>
             <p><strong>アーカイブ:</strong> {shipment.is_archived ? '✅' : '❌'}</p>
       
+            <p><strong>積載商品リスト:</strong></p>
+            <ul>
+              {(shipment.items || []).map((item, i) => (
+                <li key={i}>{item.name}：{item.quantity}個</li>
+              ))}
+            </ul>
             {/* ファイルリンク表示エリア */}
             <div>
               {shipment.invoice_url && (
