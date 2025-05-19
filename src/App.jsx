@@ -11,6 +11,18 @@ function App() {
   const [viewMode, setViewMode] = useState('card');
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [shipments, setShipments] = useState([]);
+  const [showProductStats, setShowProductStats] = useState(false);
+
+  const getProductStats = (shipments) => {
+    const stats = {};
+    shipments.forEach(s => {
+      (s.items || []).forEach(item => {
+        if (!item.name) return;
+        stats[item.name] = (stats[item.name] || 0) + Number(item.quantity || 0);
+      });
+    });
+    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  };
 
   // 🔽 fetchDataをuseEffect外にも定義
   const fetchData = async () => {
@@ -106,7 +118,7 @@ useEffect(() => {
       SI番号をクリック（モーダル想定）
     </button>
     <button
-      onClick={() => alert('商品情報をソート表示')}
+      onClick={() => setShowProductStats(show => !show)}
       className="bg-green-500 text-white px-4 py-2 rounded"
     >
       商品別の入荷予定
@@ -118,7 +130,31 @@ useEffect(() => {
       ETAをクリック（ETD・遅延など）
     </button>
   </div>
+  {/* ←この下にトグルで統計表を追加 */}
+  {showProductStats && (
+    <div style={{ marginTop: 16, background: "#fff", border: "1px solid #ccc", borderRadius: 6, padding: 16, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+      <h3>商品別の入荷予定（全出荷分）</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ borderBottom: "1px solid #aaa", textAlign: "left", padding: "4px 8px" }}>商品名</th>
+            <th style={{ borderBottom: "1px solid #aaa", textAlign: "right", padding: "4px 8px" }}>合計個数</th>
+          </tr>
+        </thead>
+        <tbody>
+          {getProductStats(shipments).map(([name, qty]) => (
+            <tr key={name}>
+              <td style={{ padding: "4px 8px" }}>{name}</td>
+              <td style={{ textAlign: "right", padding: "4px 8px" }}>{qty}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+
 </div>
+
      
       {/* モーダル表示 */}
       <Modal shipment={selectedShipment} onClose={() => setSelectedShipment(null)} />
