@@ -25,11 +25,19 @@ const overlayStyle = {
   zIndex: 999,
 };
 
+const FILE_TYPES = [
+  { label: 'インボイスファイル', key: 'invoice' },
+  { label: 'PLファイル', key: 'pl' },
+  { label: 'SIファイル', key: 'si' },
+  { label: 'その他ファイル', key: 'other' },
+];
+
 const Modal = ({ shipment, onClose }) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState(shipment);
   const [fileUrl, setFileUrl] = useState(''); // ファイルURLを保存するステート
-
+  // input valueのcontrolled/uncontrolled対策
+  const getValue = (v) => v ?? "";
 
   useEffect(() => {
     if (shipment) {
@@ -53,7 +61,7 @@ const Modal = ({ shipment, onClose }) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -62,6 +70,12 @@ const Modal = ({ shipment, onClose }) => {
 
       // Supabaseに存在しないカラムを除外
   const { invoiceFile, siFile, items, ...safeData } = formData;
+
+          // safeData に URL を明示的に追加
+      safeData.invoice_url = formData.invoice_url;
+      safeData.pl_url = formData.pl_url;
+      safeData.si_url = formData.si_url;
+      safeData.other_url = formData.other_url;
 
     const { data, error } = await supabase
       .from('shipments')
@@ -75,6 +89,32 @@ const Modal = ({ shipment, onClose }) => {
       setEditMode(false);
       console.log('保存データ:', data);
     }
+  };
+
+  // ここに handleFileUpload 関数を追加します！
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${formData.si_number}/${type}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from('shipment-files')
+      .upload(filePath, file, { upsert: true });
+    if (uploadError) {
+      alert(`${type.toUpperCase()} アップロード失敗: ${uploadError.message}`);
+      console.error(uploadError);
+      return;
+    }
+    const { data: { publicUrl } } = supabase.storage
+      .from('shipment-files')
+      .getPublicUrl(filePath);
+
+       // formDataに反映（即画面反映）
+    setFormData((prev) => ({
+      ...prev,
+      [`${type}_url`]: publicUrl,
+    }));
+    alert(`${type.toUpperCase()} アップロード完了！`);
   };
 
   return (
@@ -139,161 +179,25 @@ const Modal = ({ shipment, onClose }) => {
               />
             </label>
             <br />
-            <label>インボイスファイル:
-              <input
-                type="file"
-                onChange={async (e) => {
-                  const file = e.target.files[0];
-                  if (!file) return;
 
-                  const fileExt = file.name.split('.').pop();
-                  const filePath = `${formData.si_number}/invoice.${fileExt}`;
-
-                  const { error: uploadError } = await supabase.storage
-                    .from('shipment-files')
-                    .upload(filePath, file, { upsert: true });
-
-                  if (uploadError) {
-                    alert('アップロード失敗');
-                    console.error(uploadError);
-                    return;
-                  }
-
-                  const { data: { publicUrl } } = supabase.storage
-                    .from('shipment-files')
-                    .getPublicUrl(filePath);
-
-                  setFormData((prev) => ({
-                    ...prev,
-                    invoice_url: publicUrl,
-                  }));
-
-                  alert('アップロード完了！');
-                }}
-              />
-            </label>
-            <br />
-            <label>PLファイル:
-            <input
-              type="file"
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const fileExt = file.name.split('.').pop();
-                const filePath = `${formData.si_number}/pl.${fileExt}`;
-
-                const { error: uploadError } = await supabase.storage
-                  .from('shipment-files')
-                  .upload(filePath, file, { upsert: true });
-
-                if (uploadError) {
-                  alert('PLアップロード失敗');
-                  console.error(uploadError);
-                  return;
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                  .from('shipment-files')
-                  .getPublicUrl(filePath);
-
-                setFormData((prev) => ({
-                  ...prev,
-                  pl_url: publicUrl,
-                }));
-
-                alert('PLアップロード完了！');
-              }}
-            />
-          </label>
-          {formData.pl_url && (
-            <p><a href={formData.pl_url} target="_blank" rel="noopener noreferrer">📄 PLファイルを見る</a></p>
-          )}
-
-          <br />
-
-          <label>SIファイル:
-            <input
-              type="file"
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const fileExt = file.name.split('.').pop();
-                const filePath = `${formData.si_number}/si.${fileExt}`;
-
-                const { error: uploadError } = await supabase.storage
-                  .from('shipment-files')
-                  .upload(filePath, file, { upsert: true });
-
-                if (uploadError) {
-                  alert('SIアップロード失敗');
-                  console.error(uploadError);
-                  return;
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                  .from('shipment-files')
-                  .getPublicUrl(filePath);
-
-                setFormData((prev) => ({
-                  ...prev,
-                  si_url: publicUrl,
-                }));
-
-                alert('SIアップロード完了！');
-              }}
-            />
-          </label>
-          {formData.si_url && (
-            <p><a href={formData.si_url} target="_blank" rel="noopener noreferrer">📄 SIファイルを見る</a></p>
-          )}
-
-          <br />
-
-          <label>その他ファイル:
-            <input
-              type="file"
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const fileExt = file.name.split('.').pop();
-                const filePath = `${formData.si_number}/other.${fileExt}`;
-
-                const { error: uploadError } = await supabase.storage
-                  .from('shipment-files')
-                  .upload(filePath, file, { upsert: true });
-
-                if (uploadError) {
-                  alert('その他ファイルアップロード失敗');
-                  console.error(uploadError);
-                  return;
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                  .from('shipment-files')
-                  .getPublicUrl(filePath);
-
-                setFormData((prev) => ({
-                  ...prev,
-                  other_url: publicUrl,
-                }));
-
-                alert('その他ファイルアップロード完了！');
-              }}
-            />
-          </label>
-          {formData.other_url && (
-            <p><a href={formData.other_url} target="_blank" rel="noopener noreferrer">📄 その他ファイルを見る</a></p>
-          )}
-
-
-            {formData.invoice_url && (
-              <p><a href={formData.invoice_url} target="_blank" rel="noopener noreferrer">📄 アップロード済みファイルを見る</a></p>
-            )}
-            <br />
-           
+            {/* ファイルアップロード共通化 */}
+            {FILE_TYPES.map(({ label, key }) => (
+                          <div key={key}>
+                            <label>{label}:
+                              <input
+                                type="file"
+                                onChange={(e) => handleFileUpload(e, key)}
+                              />
+                            </label>
+                            {formData[`${key}_url`] && (
+                              <p>
+                                <a href={formData[`${key}_url`]} target="_blank" rel="noopener noreferrer">
+                                  📄 アップロード済み{label}を見る
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        ))}        
 
             <br />
             <button onClick={handleSave}>💾 保存</button>
@@ -311,13 +215,7 @@ const Modal = ({ shipment, onClose }) => {
             <p><strong>仕入れ先:</strong> {shipment.supplier_name}</p>
             <p><strong>メモ:</strong> {shipment.memo || 'なし'}</p>
             <p><strong>アーカイブ:</strong> {shipment.is_archived ? '✅' : '❌'}</p>
-            {shipment.invoice_url && (
-            <p>
-              <a href={shipment.invoice_url} target="_blank" rel="noopener noreferrer">
-                📎 添付ファイルを見る
-              </a>
-            </p>
-            )}
+      
             {/* ファイルリンク表示エリア */}
             <div>
               {shipment.invoice_url && (
@@ -358,5 +256,6 @@ const Modal = ({ shipment, onClose }) => {
     </>
   );
 };
+
 
 export default Modal;
