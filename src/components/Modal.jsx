@@ -116,6 +116,62 @@ const Modal = ({ shipment, onClose }) => {
     }));
     alert(`${type.toUpperCase()} アップロード完了！`);
   };
+      // Modalコンポーネント内に追加・削除機能
+    const handleFileDelete = async (type) => {
+      const url = formData[`${type}_url`];
+      if (!url) return;
+      if (!window.confirm("本当に削除してよろしいですか？")) return;
+
+      // ファイルパスを推測（si_number/type.拡張子 形式前提）
+      const siNumber = formData.si_number;
+      const matches = url.match(/\/([^/]+)\.([a-zA-Z0-9]+)$/);
+      let filePath = "";
+      if (matches) {
+        filePath = `${siNumber}/${type}.${matches[2]}`;
+      } else {
+        alert("ファイルパスの特定に失敗しました");
+        return;
+      }
+
+      const { error } = await supabase
+        .storage
+        .from('shipment-files')
+        .remove([filePath]);
+
+      if (error) {
+        alert("削除に失敗しました");
+        console.error(error);
+        return;
+      }
+      // 新しいformDataを作る
+      const newFormData = {
+        ...formData,
+        [`${type}_url`]: undefined,
+      };
+
+      
+      setFormData(newFormData); // 画面も即更新
+
+      alert("削除しました");
+
+      // ここで新しいformDataでDB保存
+      // Supabaseに存在しないカラムを除外
+      const { invoiceFile, siFile, items, ...safeData } = newFormData;
+      safeData.invoice_url = newFormData.invoice_url;
+      safeData.pl_url = newFormData.pl_url;
+      safeData.si_url = newFormData.si_url;
+      safeData.other_url = newFormData.other_url;
+
+      const { error: saveError } = await supabase
+        .from('shipments')
+        .upsert([safeData]);
+      if (saveError) {
+        alert('保存に失敗しました');
+        console.error(saveError);
+      } else {
+        alert('保存しました！');
+      }
+    };
 
   return (
     <>
@@ -194,6 +250,13 @@ const Modal = ({ shipment, onClose }) => {
                                 <a href={formData[`${key}_url`]} target="_blank" rel="noopener noreferrer">
                                   📄 アップロード済み{label}を見る
                                 </a>
+                                <button
+                                style={{ marginLeft: 8, color: "red" }}
+                                type="button"
+                                onClick={() => handleFileDelete(key)}
+                              >
+                                削除
+                              </button>
                               </p>
                             )}
                           </div>
