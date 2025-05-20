@@ -67,12 +67,36 @@ function App() {
         stats[item.name] = (stats[item.name] || 0) + Number(item.quantity || 0);
       });
     });
-    return Object.entries(stats).sort((a, b) => {
-      if (sort === 'name-asc') return a[0].localeCompare(b[0], "ja");
-      if (sort === 'name-desc') return b[0].localeCompare(a[0], "ja");
-      return 0;
-    });
+   // 数字→アルファベット→その他
+    const naturalSort = (a, b, order) => {
+      // 1. 数字から始まるものを最優先
+      const aIsNum = /^\d/.test(a);
+      const bIsNum = /^\d/.test(b);
+      if (aIsNum && !bIsNum) return order === 'asc' ? -1 : 1;
+      if (!aIsNum && bIsNum) return order === 'asc' ? 1 : -1;
+      if (aIsNum && bIsNum) {
+        // どちらも数字で始まる場合、数値として比較
+        const aNum = parseInt(a.match(/^\d+/)[0], 10);
+        const bNum = parseInt(b.match(/^\d+/)[0], 10);
+        if (aNum !== bNum) return order === 'asc' ? aNum - bNum : bNum - aNum;
+        // 数字部分が同じ場合は文字列比較
+        return order === 'asc' ? a.localeCompare(b, "ja") : b.localeCompare(a, "ja");
+      }
+      // 2. アルファベットで始まるものを次に
+      const aIsAlpha = /^[a-zA-Z]/.test(a);
+      const bIsAlpha = /^[a-zA-Z]/.test(b);
+      if (aIsAlpha && !bIsAlpha) return order === 'asc' ? -1 : 1;
+      if (!aIsAlpha && bIsAlpha) return order === 'asc' ? 1 : -1;
+      // 3. その他はlocaleCompare
+      return order === 'asc'
+        ? a.localeCompare(b, "ja")
+        : b.localeCompare(a, "ja");
     };
+
+    return Object.entries(stats).sort((a, b) =>
+      naturalSort(a[0], b[0], sort === 'name-asc' ? 'asc' : 'desc')
+    );
+  };
 
   // 🔽 fetchDataをuseEffect外にも定義
   const fetchData = async () => {
@@ -191,7 +215,7 @@ useEffect(() => {
               商品名
               <button
               style={{ marginLeft: 6, fontSize: "1rem", border: "none", background: "none", cursor: "pointer", verticalAlign: "middle" }}
-              title={productStatsSort === 'name-asc' ? "A→Z順（昇順）で表示中。クリックでZ→A順。" : "Z→A順（降順）で表示中。クリックでA→Z順。"}
+              title={productStatsSort === 'name-asc' ? "1→9→A→Z→あ...昇順で表示中。クリックでZ→A順。" : "（降順）で表示中。クリックで昇順。"}
               onClick={() =>
                 setProductStatsSort(sort =>
                   sort === 'name-asc' ? 'name-desc' : 'name-asc'
@@ -205,7 +229,7 @@ useEffect(() => {
           </tr>
         </thead>
         <tbody>
-          {getProductStats(shipments).map(([name, qty]) => (
+          {getProductStats(shipments, productStatsSort).map(([name, qty]) => (
             <tr key={name}>
               <td 
                 style={{ padding: "4px 8px", cursor: "pointer", textDecoration: "none" }}
