@@ -17,6 +17,8 @@ function App() {
   const popupTimeout = useRef(null);
   const POPUP_WIDTH = 320;
   const POPUP_HEIGHT = 180;
+  const statusOrder = ["SI発行済", "船積スケジュール確定", "船積中", "輸入通関中", "倉庫着"];
+  const [productStatsSort, setProductStatsSort] = useState('name-asc'); // 'name-asc' or 'name-desc'
 
   const handleProductMouseEnter = (e, name) => {
     if (popupTimeout.current) clearTimeout(popupTimeout.current);
@@ -57,7 +59,7 @@ function App() {
     }, 200);
   };
 
-  const getProductStats = (shipments) => {
+  const getProductStats = (shipments, sort = 'name-asc') => {
     const stats = {};
     shipments.forEach(s => {
       (s.items || []).forEach(item => {
@@ -65,8 +67,12 @@ function App() {
         stats[item.name] = (stats[item.name] || 0) + Number(item.quantity || 0);
       });
     });
-    return Object.entries(stats).sort((a, b) => b[1] - a[1]);
-  };
+    return Object.entries(stats).sort((a, b) => {
+      if (sort === 'name-asc') return a[0].localeCompare(b[0], "ja");
+      if (sort === 'name-desc') return b[0].localeCompare(a[0], "ja");
+      return 0;
+    });
+    };
 
   // 🔽 fetchDataをuseEffect外にも定義
   const fetchData = async () => {
@@ -181,7 +187,20 @@ useEffect(() => {
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
-            <th style={{ borderBottom: "1px solid #aaa", textAlign: "left", padding: "4px 8px" }}>商品名</th>
+            <th style={{ borderBottom: "1px solid #aaa", textAlign: "left", padding: "4px 8px" }}>
+              商品名
+              <button
+              style={{ marginLeft: 6, fontSize: "1rem", border: "none", background: "none", cursor: "pointer", verticalAlign: "middle" }}
+              title={productStatsSort === 'name-asc' ? "A→Z順（昇順）で表示中。クリックでZ→A順。" : "Z→A順（降順）で表示中。クリックでA→Z順。"}
+              onClick={() =>
+                setProductStatsSort(sort =>
+                  sort === 'name-asc' ? 'name-desc' : 'name-asc'
+                )
+              }
+              >
+              {productStatsSort === 'name-asc' ? '▲' : '▼'}
+              </button>
+              </th>
             <th style={{ borderBottom: "1px solid #aaa", textAlign: "right", padding: "4px 8px" }}>合計個数</th>
           </tr>
         </thead>
@@ -239,6 +258,13 @@ useEffect(() => {
             <tbody>
               {shipments
                 .filter(s => (s.items || []).some(item => item.name === hoveredProduct))
+                .sort((a, b) => {
+                  // まずstatus順
+                  const statusDiff = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+                  if (statusDiff !== 0) return statusDiff;
+                  // 同じstatusならETA順
+                  return new Date(a.eta) - new Date(b.eta);
+                })
                 .map(s => {
                   const item = (s.items || []).find(item => item.name === hoveredProduct);
                   return (
