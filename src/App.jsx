@@ -293,7 +293,11 @@ useEffect(() => {
                   const item = (s.items || []).find(item => item.name === hoveredProduct);
                   return (
                     <tr key={s.si_number}>
-                      <td>{s.si_number}</td>
+                      <td
+                        style={{ cursor: 'pointer', color: '#0074d9', textDecoration: 'underline' }}
+                        onClick={() => setSelectedShipment(s)}
+                        title="このSIを開く"
+                      >{s.si_number}</td>
                       <td>{item.name}</td>
                       <td>{item.quantity}</td>
                       <td>{s.status}</td>
