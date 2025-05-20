@@ -58,7 +58,7 @@ const Modal = ({ shipment, onClose }) => {
   if (!shipment || !formData) return null;  // 安全確認
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -185,7 +185,17 @@ const Modal = ({ shipment, onClose }) => {
         {editMode ? (
           <>
             <label>ステータス:
-              <input name="status" value={formData.status} onChange={handleChange} />
+            <select
+                name="status"
+                value={formData.status || "船積済"}
+                onChange={handleChange}
+              >
+                <option value="SI発行済">SI発行済</option>
+                <option value="船積スケジュール確定">船積スケジュール確定</option>
+                <option value="船積中">船積中</option>
+                <option value="輸入通関中">輸入通関中</option>
+                <option value="倉庫着">倉庫着</option>
+              </select>
             </label>
             <br />
             <label>輸送手段:
