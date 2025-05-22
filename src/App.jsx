@@ -25,7 +25,8 @@ function App() {
   // SI番号で検索用（前方一致・上位10件）
   const filteredShipments = shipments
   .filter(s =>
-    !siQuery || (s.si_number && s.si_number.startsWith(siQuery))
+    !siQuery ||
+    (s.si_number && s.si_number.toLowerCase().startsWith(siQuery.toLowerCase())) 
   )
   .slice(0, 10);
   // ステータスごとグループ化関数
