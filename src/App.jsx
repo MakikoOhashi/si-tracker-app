@@ -11,14 +11,33 @@ function App() {
   const [viewMode, setViewMode] = useState('card');
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [shipments, setShipments] = useState([]);
-  const [showProductStats, setShowProductStats] = useState(false);
   const [hoveredProduct, setHoveredProduct] = useState(null); // { name, x, y }
   const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const [productStatsSort, setProductStatsSort] = useState('name-asc'); // 'name-asc' or 'name-desc'
+  const [detailViewMode, setDetailViewMode] = useState('product'); // 'product', 'status', 'search'
+  const [siQuery, setSiQuery] = useState('');
+
   const popupTimeout = useRef(null);
   const POPUP_WIDTH = 320;
   const POPUP_HEIGHT = 180;
   const statusOrder = ["SI発行済", "船積スケジュール確定", "船積中", "輸入通関中", "倉庫着"];
-  const [productStatsSort, setProductStatsSort] = useState('name-asc'); // 'name-asc' or 'name-desc'
+
+  // SI番号で検索用（前方一致・上位10件）
+  const filteredShipments = shipments
+  .filter(s =>
+    !siQuery || (s.si_number && s.si_number.startsWith(siQuery))
+  )
+  .slice(0, 10);
+  // ステータスごとグループ化関数
+  const getStatusStats = (shipments) => {
+    const stats = {};
+    shipments.forEach(s => {
+      const status = s.status || "未設定";
+      if (!stats[status]) stats[status] = [];
+      stats[status].push(s);
+    });
+    return stats;
+  };
 
   const handleProductMouseEnter = (e, name) => {
     if (popupTimeout.current) clearTimeout(popupTimeout.current);
@@ -180,33 +199,46 @@ useEffect(() => {
       </div>
       
 
-{/* ここから新UIセクションを追加 */}
+{/* 詳細表示　　セクション */}
 <div style={{ marginTop: '3rem' }}>
   <h2>詳細表示セクション（例：クリックで情報表示）</h2>
 
   <div className="flex justify-center gap-4 mt-4">
     <button
-      onClick={() => setSelectedShipment(shipments[0])}
-      className="bg-blue-500 text-white px-4 py-2 rounded"
+      onClick={() => setDetailViewMode('search')}
+      className={`bg-blue-500 text-white px-4 py-2 rounded ${detailViewMode === 'search' ? '' : 'opacity-70'}`}
     >
-      SI番号をクリック（モーダル想定）
+      SI番号で検索
     </button>
     <button
-      onClick={() => setShowProductStats(show => !show)}
+      onClick={() => setDetailViewMode('product')}
       className="bg-green-500 text-white px-4 py-2 rounded"
     >
       商品別の入荷予定
     </button>
     <button
-      onClick={() => alert('ETAで船積み情報表示')}
-      className="bg-purple-500 text-white px-4 py-2 rounded"
+      onClick={() => setDetailViewMode('status')}
+      className={`bg-purple-500 text-white px-4 py-2 rounded ${detailViewMode === 'status' ? '' : 'opacity-70'}`}
     >
-      ETAをクリック（ETD・遅延など）
+      ステータスごとのチャート
     </button>
   </div>
   {/* ←この下にトグルで統計表を追加 */}
-  {showProductStats && (
-    <div style={{ marginTop: 16, background: "#fff", border: "1px solid #ccc", borderRadius: 6, padding: 16, maxWidth: 480, marginLeft: "auto", marginRight: "auto", position: "relative" }}>
+  
+    <div style={{ 
+      marginTop: 16, 
+      background: "#fff", 
+      border: "1px solid #ccc", 
+      borderRadius: 6, 
+      padding: 16, 
+      maxWidth: 480, 
+      marginLeft: "auto", 
+      marginRight: "auto", 
+      position: "relative" 
+    }}>
+       {/* 商品別 */}
+       {detailViewMode === 'product' && (
+      <>
       <h3>商品別の入荷予定（全出荷分）</h3>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
@@ -247,7 +279,7 @@ useEffect(() => {
           ))}
         </tbody>
       </table>
- {/* ...統計表のすぐ後ろにポップアップを絶対配置 */}
+      {/* POPUP */}
       { hoveredProduct && (
         <div
           style={{
@@ -308,14 +340,106 @@ useEffect(() => {
           </table>
         </div>
       )}
+    </>
+    )}
+
+     {/* ステータスごとのチャート */}
+     {detailViewMode === 'status' && (
+    <>
+    <h3>ステータスごとの入荷予定</h3>
+            {statusOrder.map(status => (
+              <div key={status} style={{ marginBottom: 16 }}>
+                <h4 style={{ marginBottom: 4 }}>{status}</h4>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th>SI番号</th>
+                      <th>商品名</th>
+                      <th>数量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(getStatusStats(shipments)[status] || []).map(s =>
+                      (s.items || []).map(item => (
+                        <tr key={s.si_number + item.name}>
+                          <td
+                            style={{ cursor: "pointer", color: "#0074d9", textDecoration: "underline" }}
+                            onClick={() => setSelectedShipment(s)}
+                            title="このSIを開く"
+                          >
+                            {s.si_number}
+                          </td>
+                          <td>{item.name}</td>
+                          <td style={{ textAlign: "right" }}>{item.quantity}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )}
+
+
+
+        {/* SI番号で検索 */}
+        {detailViewMode === 'search' && (
+            <>
+              <h3>SI番号で検索（前方一致・上位10件）</h3>
+              <input
+                type="text"
+                placeholder="SI番号を入力"
+                value={siQuery}
+                onChange={e => setSiQuery(e.target.value)}
+                style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', minWidth: 180, marginBottom: 12 }}
+              />
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
+                <thead>
+                  <tr>
+                    <th>SI番号</th>
+                    <th>ETA</th>
+                    <th>仕入れ先</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredShipments.map(s => (
+                    <tr key={s.si_number}>
+                      <td>
+                        <a
+                          href="#"
+                          style={{ color: '#0074d9', textDecoration: 'underline', cursor: 'pointer' }}
+                          onClick={e => {
+                            e.preventDefault();
+                            setSelectedShipment(s);
+                          }}
+                        >
+                          {s.si_number}
+                        </a>
+                      </td>
+                      <td>{s.eta}</td>
+                      <td>{s.supplier_name}</td>
+                    </tr>
+                  ))}
+                  {siQuery && filteredShipments.length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: 'center', color: '#888' }}>
+                        該当するSIがありません
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+            )}
     </div>
-  )}
+  
 
 </div>
 
      
       {/* モーダル表示 */}
-      <Modal shipment={selectedShipment} onClose={() => setSelectedShipment(null)} />
+      <Modal shipment={selectedShipment} onClose={handleModalClose} />
 
     </div>
     
