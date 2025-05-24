@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useState, useRef } from 'react';
-import { Page, Card, Button, ButtonGroup, DataTable, TextField, Tabs, Banner, InlineStack, BlockStack, TextContainer, Text } from '@shopify/polaris';
+import { AppProvider,Page, Card, Button, ButtonGroup, DataTable, TextField, Tabs, Banner, InlineStack, BlockStack, TextContainer, Text } from '@shopify/polaris';
 import CustomModal from './components/Modal';
 import { supabase } from './supabaseClient';
 import StatusCard from './components/StatusCard';
@@ -9,6 +9,8 @@ import StatusTable from './components/StatusTable';
 
 
 function App() {
+  const [shopIdInput, setShopIdInput] = useState("test-owner");
+  const [shopId, setShopId] = useState("test-owner");
   const [viewMode, setViewMode] = useState('card');
   const [selectedShipment, setSelectedShipment] = useState(null);
   const [shipments, setShipments] = useState([]);
@@ -22,6 +24,27 @@ function App() {
   const POPUP_WIDTH = 320;
   const POPUP_HEIGHT = 180;
   const statusOrder = ["SI発行済", "船積スケジュール確定", "船積中", "輸入通関中", "倉庫着"];
+
+  // SHOP ID データ取得
+  useEffect(() => {
+    async function fetchShipments() {
+      const { data, error } = await supabase
+        .from("shipments")
+        .select("*")
+        .eq("shop_id", shopId);
+
+      if (error) {
+        console.error(error);
+        setShipments([]);
+        return;
+      }
+      setShipments(data);
+    }
+    fetchShipments();
+  }, [shopId]);
+
+  const handleInputChange = (value) => setShopIdInput(value);
+  const handleShopIdApply = () => setShopId(shopIdInput);
 
   // SI番号で検索用（前方一致・上位10件）
   const filteredShipments = shipments
@@ -130,19 +153,19 @@ function App() {
   };
 
 
-// 🔽 useEffectはここで書く
-useEffect(() => {
-  const fetchData = async () => {
-    const { data, error } = await supabase.from('shipments').select('*');
-    if (error) {
-      console.error('データ取得エラー:', error);
-    } else {
-      setShipments(data);
-    }
-  };
+// // 🔽 useEffectはここで書く
+// useEffect(() => {
+//   const fetchData = async () => {
+//     const { data, error } = await supabase.from('shipments').select('*');
+//     if (error) {
+//       console.error('データ取得エラー:', error);
+//     } else {
+//       setShipments(data);
+//     }
+//   };
 
-  fetchData();
-}, []); // ← 初回マウント時だけ実行
+//   fetchData();
+// }, []); // ← 初回マウント時だけ実行
 
   // 🔽 モーダルを閉じる時（または保存完了時）にデータ再取得
   const handleModalClose = () => {
@@ -169,18 +192,55 @@ useEffect(() => {
 
   
   return (
+    <AppProvider i18n={{}}>
+      <Page title="オーナーごとの出荷一覧">
+        <Card sectioned>
+          <TextField
+            label="Shop ID（オーナーID）"
+            value={shopIdInput}
+            onChange={handleInputChange}
+            autoComplete="off"
+            placeholder="例: test-owner"
+          />
+          <Button primary onClick={handleShopIdApply} style={{ marginTop: 16 }}>
+            切り替え
+          </Button>
+        </Card>
+       
+        {/* ETAが近い上位2件のリスト表示 */}     
+        <Card title="近日入荷予定の出荷" sectioned>
+
+        <p>近日入荷予定</p>
+        {shipments.length === 0 ? (
+            <p>データがありません</p>
+          ) : (
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {upcomingShipments.map((s) => (
+            <li key={s.si_number} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
+            <span onClick={() => setSelectedShipment(s)}>
+              {s.si_number} - <strong>ETA:</strong> {s.eta}
+            </span>
+            </li>
+          ))}
+        </ul>)
+          }
+        </Card>
+      </Page>
+    
+
     <Page title="入荷ステータス一覧">
 
+      
       {/* 表示切り替えボタン */}
        <Card sectioned>
         <ButtonGroup>
           <Button primary={viewMode === 'card'} onClick={() => setViewMode('card')}>カード表示</Button>
           <Button primary={viewMode === 'table'} onClick={() => setViewMode('table')}>テーブル表示</Button>
         </ButtonGroup>
-      </Card>
+      
 
       {/* 表示形式に応じて切り替え */}
-      <Card sectioned>
+      
       {viewMode === 'card' ? (
         <InlineStack gap="loose">
           {shipments.map((s) => (
@@ -199,19 +259,7 @@ useEffect(() => {
       )}
       </Card>
 
-      {/* ETAが近い上位2件のリスト表示 */}
-      
-        <Card title="近日入荷予定の出荷" sectioned>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {upcomingShipments.map((s) => (
-            <li key={s.si_number} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-            <span onClick={() => setSelectedShipment(s)}>
-              {s.si_number} - <strong>ETA:</strong> {s.eta}
-            </span>
-            </li>
-          ))}
-        </ul>
-        </Card>
+
       
       
 
@@ -409,15 +457,14 @@ useEffect(() => {
     </div>
   
 
-</Card>
-
-     
+</Card>   
       {/* モーダル表示 */}
       <CustomModal
         shipment={selectedShipment}
         onClose={handleModalClose}
       />
     </Page>
+  </AppProvider>
   );
 }
 
