@@ -5,7 +5,7 @@ import CustomModal from './components/Modal';
 import { supabase } from './supabaseClient';
 import StatusCard from './components/StatusCard';
 import StatusTable from './components/StatusTable';
-
+import OCRUploader from "./components/OCRUploader";
 
 
 function App() {
@@ -206,7 +206,8 @@ function App() {
     
 
     <Page title="入荷ステータス一覧">
-
+        {/* ここにOCRアップローダーを追加 */}
+        <OCRUploader />
       
       {/* 表示切り替えボタン */}
        <Card sectioned>
