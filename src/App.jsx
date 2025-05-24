@@ -25,23 +25,31 @@ function App() {
   const POPUP_HEIGHT = 180;
   const statusOrder = ["SI発行済", "船積スケジュール確定", "船積中", "輸入通関中", "倉庫着"];
 
-  // SHOP ID データ取得
-  useEffect(() => {
-    async function fetchShipments() {
-      const { data, error } = await supabase
-        .from("shipments")
-        .select("*")
-        .eq("shop_id", shopId);
+  // --- 修正1: fetchShipments関数（shop_idで絞り込む関数に統一） ---
+  const fetchShipments = async (shopIdValue) => {
+    const { data, error } = await supabase
+      .from("shipments")
+      .select("*")
+      .eq("shop_id", shopIdValue);
 
-      if (error) {
-        console.error(error);
-        setShipments([]);
-        return;
-      }
-      setShipments(data);
+    if (error) {
+      console.error(error);
+      setShipments([]);
+      return;
     }
-    fetchShipments();
+    setShipments(data);
+  };
+
+  // --- 修正2: useEffectでshopIdが変わった時だけfetchShipments実行 ---
+  useEffect(() => {
+    fetchShipments(shopId);
   }, [shopId]);
+
+  // --- 修正3: fetchData（全件取得関数）を削除し、handleModalCloseでshopIdで再取得 ---
+  const handleModalClose = () => {
+    setSelectedShipment(null);
+    fetchShipments(shopId); // ← 閉じたあともshopIdで絞り込んだデータを取得
+  };
 
   const handleInputChange = (value) => setShopIdInput(value);
   const handleShopIdApply = () => setShopId(shopIdInput);
@@ -140,37 +148,6 @@ function App() {
     return Object.entries(stats).sort((a, b) =>
       naturalSort(a[0], b[0], sort === 'name-asc' ? 'asc' : 'desc')
     );
-  };
-
-  // 🔽 fetchDataをuseEffect外にも定義
-  const fetchData = async () => {
-    const { data, error } = await supabase.from('shipments').select('*');
-    if (error) {
-      console.error('データ取得エラー:', error);
-    } else {
-      setShipments(data);
-    }
-  };
-
-
-// // 🔽 useEffectはここで書く
-// useEffect(() => {
-//   const fetchData = async () => {
-//     const { data, error } = await supabase.from('shipments').select('*');
-//     if (error) {
-//       console.error('データ取得エラー:', error);
-//     } else {
-//       setShipments(data);
-//     }
-//   };
-
-//   fetchData();
-// }, []); // ← 初回マウント時だけ実行
-
-  // 🔽 モーダルを閉じる時（または保存完了時）にデータ再取得
-  const handleModalClose = () => {
-    setSelectedShipment(null);
-    fetchData();
   };
 
   // ETAの早い順でソートして上位2件を抽出
