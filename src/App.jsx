@@ -1,9 +1,10 @@
 // src/App.jsx
 import React, { useEffect, useState, useRef } from 'react';
+import { Page, Card, Button, ButtonGroup, DataTable, TextField, Tabs, Banner, InlineStack, BlockStack, TextContainer, Text } from '@shopify/polaris';
+import CustomModal from './components/Modal';
 import { supabase } from './supabaseClient';
 import StatusCard from './components/StatusCard';
 import StatusTable from './components/StatusTable';
-import Modal from './components/Modal';
 
 
 
@@ -155,21 +156,33 @@ useEffect(() => {
     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
     .slice(0, 2);
     
+  // Polaris用タブ
+  const tabs = [
+    { id: 'search', content: 'SI番号で検索' },
+    { id: 'product', content: '商品別の入荷予定' },
+    { id: 'status', content: 'ステータスごとのチャート' },
+  ];
+  const selectedTab = tabs.findIndex(tab => tab.id === detailViewMode);
+
+
+
+
+  
   return (
-    <div className="p-10 bg-red-200 text-center" style={{ padding: '2rem', position: "relative" }}>
-      <h1>入荷ステータス一覧</h1>
+    <Page title="入荷ステータス一覧">
 
       {/* 表示切り替えボタン */}
-      <div style={{ marginBottom: '1rem' }}>
-        <button onClick={() => setViewMode('card')} style={{ marginRight: '1rem' }}>
-          カード表示
-        </button>
-        <button onClick={() => setViewMode('table')}>テーブル表示</button>
-      </div>
+       <Card sectioned>
+        <ButtonGroup>
+          <Button primary={viewMode === 'card'} onClick={() => setViewMode('card')}>カード表示</Button>
+          <Button primary={viewMode === 'table'} onClick={() => setViewMode('table')}>テーブル表示</Button>
+        </ButtonGroup>
+      </Card>
 
       {/* 表示形式に応じて切り替え */}
+      <Card sectioned>
       {viewMode === 'card' ? (
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <InlineStack gap="loose">
           {shipments.map((s) => (
              <StatusCard
              key={s.si_number}
@@ -177,17 +190,18 @@ useEffect(() => {
              onSelectShipment={() => setSelectedShipment(s)} // 追加
            />
           ))}
-        </div>
+        </InlineStack>
       ) : (
         <StatusTable 
         shipments={shipments} 
         onSelectShipment={(shipment) => setSelectedShipment(shipment)}
         />
       )}
+      </Card>
 
       {/* ETAが近い上位2件のリスト表示 */}
-      <div style={{ marginTop: '2rem' }}>
-        <h2>近日入荷予定の出荷</h2>
+      
+        <Card title="近日入荷予定の出荷" sectioned>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {upcomingShipments.map((s) => (
             <li key={s.si_number} style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
@@ -197,33 +211,31 @@ useEffect(() => {
             </li>
           ))}
         </ul>
-      </div>
+        </Card>
+      
       
 
 {/* 詳細表示　　セクション */}
-<div style={{ marginTop: '3rem' }}>
-  <h2>詳細表示セクション（例：クリックで情報表示）</h2>
+<Card sectioned>
+  <Text as="h2" variant="headingLg">詳細表示セクション（例：クリックで情報表示）</Text>
 
-  <div className="flex justify-center gap-4 mt-4">
-    <button
+  <ButtonGroup>
+    <Button primary={detailViewMode === 'search'}
       onClick={() => setDetailViewMode('search')}
-      className={`bg-blue-500 text-white px-4 py-2 rounded ${detailViewMode === 'search' ? '' : 'opacity-70'}`}
     >
       SI番号で検索
-    </button>
-    <button
+    </Button>
+    <Button primary={detailViewMode === 'product'}
       onClick={() => setDetailViewMode('product')}
-      className="bg-green-500 text-white px-4 py-2 rounded"
     >
       商品別の入荷予定
-    </button>
-    <button
+    </Button>
+    <Button primary={detailViewMode === 'status'}
       onClick={() => setDetailViewMode('status')}
-      className={`bg-purple-500 text-white px-4 py-2 rounded ${detailViewMode === 'status' ? '' : 'opacity-70'}`}
     >
       ステータスごとのチャート
-    </button>
-  </div>
+    </Button>
+  </ButtonGroup>
   {/* ←この下にトグルで統計表を追加 */}
   
     <div style={{ 
@@ -240,46 +252,35 @@ useEffect(() => {
        {/* 商品別 */}
        {detailViewMode === 'product' && (
       <>
-      <h3>商品別の入荷予定（全出荷分）</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ borderBottom: "1px solid #aaa", textAlign: "left", padding: "4px 8px" }}>
-              商品名
-              <button
-              style={{ marginLeft: 6, fontSize: "1rem", border: "none", background: "none", cursor: "pointer", verticalAlign: "middle" }}
-              title={productStatsSort === 'name-asc' ? "1→9→A→Z→あ...昇順で表示中。クリックでZ→A順。" : "（降順）で表示中。クリックで昇順。"}
-              onClick={() =>
-                setProductStatsSort(sort =>
-                  sort === 'name-asc' ? 'name-desc' : 'name-asc'
-                )
-              }
-              >
-              {productStatsSort === 'name-asc' ? '▲' : '▼'}
-              </button>
-              </th>
-            <th style={{ borderBottom: "1px solid #aaa", textAlign: "right", padding: "4px 8px" }}>合計個数</th>
-          </tr>
-        </thead>
-        <tbody>
-          {getProductStats(shipments, productStatsSort).map(([name, qty]) => (
-            <tr key={name}>
-              <td 
-                style={{ padding: "4px 8px", cursor: "pointer", textDecoration: "none" }}
-              >
-              <span
-                style={{ display: "inline", cursor: "pointer", textDecoration: "none", fontSize:"1.4rem" }}
-                onMouseEnter={e => handleProductMouseEnter(e, name)}
-                onMouseLeave={handleProductMouseLeave}
-              >
-                {name}
-              </span><span style={{width:"8px"}}></span>
-              </td>
-              <td style={{ textAlign: "right", padding: "4px 8px" }}>{qty}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Text as="h3" variant="headingMd">商品別の入荷予定（全出荷分）</Text>
+      <div style={{ marginBottom: 12 }}>        
+        <Button
+          onClick={() =>
+            setProductStatsSort(sort =>
+              sort === 'name-asc' ? 'name-desc' : 'name-asc'
+            )
+          }
+          size="slim"
+          plain
+        >
+          {productStatsSort === 'name-asc' ? '▲ 商品名順' : '▼ 商品名順'}
+        </Button>
+      </div>
+        <DataTable
+        columnContentTypes={['text', 'numeric']}
+        headings={['商品名', '合計個数']}
+        rows={getProductStats(shipments, productStatsSort).map(([name, qty]) => [
+          <span
+            style={{ display: "inline", cursor: "pointer", textDecoration: "none", fontSize: "1.4rem" }}
+            onMouseEnter={e => handleProductMouseEnter(e, name)}
+            onMouseLeave={handleProductMouseLeave}
+          >
+            {name}
+          </span>,
+          qty
+        ])}
+      />
+     
       {/* POPUP */}
       { hoveredProduct && (
         <div
@@ -303,17 +304,11 @@ useEffect(() => {
           onMouseLeave={handlePopupMouseLeave}
         >
           <b>「{hoveredProduct}」積載SI一覧</b>
-          <table style={{ width: "100%", fontSize: "0.95em", marginTop: 8 }}>
-            <thead>
-              <tr>
-                <th>SI番号</th>
-                <th>商品名</th>
-                <th>数量</th>
-                <th>ステータス</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shipments
+          <DataTable
+            columnContentTypes={['text', 'text', 'numeric', 'text']}
+            headings={['SI番号', '商品名', '数量', 'ステータス']}
+            rows={
+              shipments
                 .filter(s => (s.items || []).some(item => item.name === hoveredProduct))
                 .sort((a, b) => {
                   // まずstatus順
@@ -324,21 +319,21 @@ useEffect(() => {
                 })
                 .map(s => {
                   const item = (s.items || []).find(item => item.name === hoveredProduct);
-                  return (
-                    <tr key={s.si_number}>
-                      <td
-                        style={{ cursor: 'pointer', color: '#0074d9', textDecoration: 'underline' }}
-                        onClick={() => setSelectedShipment(s)}
-                        title="このSIを開く"
-                      >{s.si_number}</td>
-                      <td>{item.name}</td>
-                      <td>{item.quantity}</td>
-                      <td>{s.status}</td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
+                  return [
+                    <span
+                      style={{ cursor: 'pointer', color: '#0074d9', textDecoration: 'underline' }}
+                      onClick={() => setSelectedShipment(s)}
+                      title="このSIを開く"
+                    >
+                      {s.si_number}
+                    </span>,
+                    item.name,
+                    item.quantity,
+                    s.status
+                  ];
+                })
+            }
+          />
         </div>
       )}
     </>
@@ -347,38 +342,32 @@ useEffect(() => {
      {/* ステータスごとのチャート */}
      {detailViewMode === 'status' && (
     <>
-    <h3>ステータスごとの入荷予定</h3>
-            {statusOrder.map(status => (
-              <div key={status} style={{ marginBottom: 16 }}>
-                <h4 style={{ marginBottom: 4 }}>{status}</h4>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <th>SI番号</th>
-                      <th>商品名</th>
-                      <th>数量</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(getStatusStats(shipments)[status] || []).map(s =>
-                      (s.items || []).map(item => (
-                        <tr key={s.si_number + item.name}>
-                          <td
-                            style={{ cursor: "pointer", color: "#0074d9", textDecoration: "underline" }}
-                            onClick={() => setSelectedShipment(s)}
-                            title="このSIを開く"
-                          >
-                            {s.si_number}
-                          </td>
-                          <td>{item.name}</td>
-                          <td style={{ textAlign: "right" }}>{item.quantity}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ))}
+    <Text as="h3" variant="headingMd">ステータスごとの入荷予定</Text>
+      {statusOrder.map(status => {
+        const rows = (getStatusStats(shipments)[status] || []).flatMap(s =>
+          (s.items || []).map(item => [
+            <span
+              style={{ cursor: "pointer", color: "#0074d9", textDecoration: "underline" }}
+              onClick={() => setSelectedShipment(s)}
+              title="このSIを開く"
+            >
+              {s.si_number}
+            </span>,
+            item.name,
+            item.quantity
+          ])
+        );
+        return (
+          <div key={status} style={{ marginBottom: 16 }}>
+            <Text as="h4" variant="headingMd">{status}</Text>
+            <DataTable
+              columnContentTypes={['text', 'text', 'numeric']}
+              headings={['SI番号', '商品名', '数量']}
+              rows={rows}
+            />
+          </div>
+        );
+        })}
           </>
         )}
 
@@ -387,65 +376,49 @@ useEffect(() => {
         {/* SI番号で検索 */}
         {detailViewMode === 'search' && (
             <>
-              <h3>SI番号で検索（前方一致・上位10件）</h3>
-              <input
-                type="text"
-                placeholder="SI番号を入力"
+              <Text as="h3" variant="headingMd">SI番号で検索（前方一致・上位10件）</Text>
+              <TextField
+                label="SI番号"
                 value={siQuery}
-                onChange={e => setSiQuery(e.target.value)}
-                style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', minWidth: 180, marginBottom: 12 }}
+                onChange={setSiQuery}
+                autoComplete="off"
+                placeholder="SI番号を入力"
+                clearButton
+                onClearButtonClick={() => setSiQuery('')}
               />
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
-                <thead>
-                  <tr>
-                    <th>SI番号</th>
-                    <th>ETA</th>
-                    <th>仕入れ先</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredShipments.map(s => (
-                    <tr key={s.si_number}>
-                      <td>
-                        <a
-                          href="#"
-                          style={{ color: '#0074d9', textDecoration: 'underline', cursor: 'pointer' }}
-                          onClick={e => {
-                            e.preventDefault();
-                            setSelectedShipment(s);
-                          }}
-                        >
-                          {s.si_number}
-                        </a>
-                      </td>
-                      <td>{s.eta}</td>
-                      <td>{s.supplier_name}</td>
-                    </tr>
-                  ))}
-                  {siQuery && filteredShipments.length === 0 && (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: 'center', color: '#888' }}>
-                        該当するSIがありません
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              <DataTable
+                columnContentTypes={['text', 'text', 'text']}
+                headings={['SI番号', 'ETA', '仕入れ先']}
+                rows={filteredShipments.map(s => [
+                  <span
+                    style={{ color: '#0074d9', textDecoration: 'underline', cursor: 'pointer' }}
+                    onClick={() => setSelectedShipment(s)}
+                    title="このSIを開く"
+                  >
+                    {s.si_number}
+                  </span>,
+                  s.eta,
+                  s.supplier_name
+                ])}
+              />
+              {siQuery && filteredShipments.length === 0 && (
+                <Banner status="info">該当するSIがありません</Banner>
+              )}
             </>
             )}
     </div>
   
 
-</div>
+</Card>
 
      
       {/* モーダル表示 */}
-      <Modal shipment={selectedShipment} onClose={handleModalClose} />
-
-    </div>
-    
+      <CustomModal
+        shipment={selectedShipment}
+        onClose={handleModalClose}
+      />
+    </Page>
   );
-  
 }
 
 export default App;

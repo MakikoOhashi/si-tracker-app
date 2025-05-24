@@ -1,6 +1,17 @@
 // src/components/Modal.jsx
 import React, { useState, useEffect } from 'react';
+import {
+  Modal,
+  Button,
+  TextField,
+  Select,
+  Checkbox,
+  InlineStack,
+  BlockStack,
+  Text
+} from '@shopify/polaris';
 import { supabase } from '../supabaseClient'; // ← supabaseクライアントをインポート
+
 
 const modalStyle = {
   position: 'fixed',
@@ -33,7 +44,7 @@ const FILE_TYPES = [
   { label: 'その他ファイル', key: 'other' },
 ];
 
-const Modal = ({ shipment, onClose }) => {
+const CustomModal = ({ shipment, onClose }) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState(shipment);
   const [fileUrl, setFileUrl] = useState(''); // ファイルURLを保存するステート
@@ -176,219 +187,212 @@ const Modal = ({ shipment, onClose }) => {
     };
 
   return (
-    <>
-      <div style={overlayStyle} onClick={onClose}></div>
-      <div style={modalStyle}>
-        <button onClick={onClose} style={{ float: 'right' }}>×</button>
-        <h2>SI詳細: {shipment.si_number}</h2>
+    <Modal
+      open={!!shipment}
+      onClose={onClose}
+      title={`SI詳細: ${shipment?.si_number || ""}`}
+      primaryAction={editMode
+        ? { content: '💾 保存', onAction: handleSave }
+        : { content: '✎ 編集', onAction: () => setEditMode(true) }
+      }
+      secondaryActions={[
+        ...(editMode ? [{ content: 'キャンセル', onAction: () => setEditMode(false) }] : []),
+        { content: '閉じる', onAction: onClose }
+      ]}
+    >
 
-{/*  編集モード */}
+      {/*  編集モード */}
+      <Modal.Section>
         {editMode ? (
-          <>
-            <label>ステータス:
-            <select
-                name="status"
-                value={formData.status || "船積済"}
-                onChange={handleChange}
-              >
-                <option value="SI発行済">SI発行済</option>
-                <option value="船積スケジュール確定">船積スケジュール確定</option>
-                <option value="船積中">船積中</option>
-                <option value="輸入通関中">輸入通関中</option>
-                <option value="倉庫着">倉庫着</option>
-              </select>
-            </label>
-            <br />
-            <label>輸送手段:
-              <input name="transport_type" value={formData.transport_type} onChange={handleChange} />
-            </label>
-            <br />
-            <label>ETD:
-              <input name="etd" type="date" value={formData.etd} onChange={handleChange} />
-            </label>
-            <br />
-            <label>ETA:
-              <input name="eta" type="date" value={formData.eta} onChange={handleChange} />
-            </label>
-            <br />
-            <label>遅延:
-              <select name="delayed" value={formData.delayed} onChange={handleChange}>
-                <option value={true}>あり</option>
-                <option value={false}>なし</option>
-              </select>
-            </label>
-            <br />
-            <label>通関日:
-              <input name="clearance_date" type="date" value={formData.clearance_date || ''} onChange={handleChange} />
-            </label>
-            <br />
-            <label>倉庫着日:
-              <input name="arrival_date" type="date" value={formData.arrival_date || ''} onChange={handleChange} />
-            </label>
-            <br />
-            <label>仕入れ先:
-              <input name="supplier_name" value={formData.supplier_name} onChange={handleChange} />
-            </label>
-            <br />
-            <label>メモ:
-              <textarea name="memo" value={formData.memo || ''} onChange={handleChange} />
-            </label>
-            <br />
-            <label>アーカイブ:
-              <input
-                type="checkbox"
-                name="is_archived"
-                checked={formData.is_archived || false}
-                onChange={(e) =>
-                setFormData((prev) => ({
-                ...prev,
-                is_archived: e.target.checked,
-                }))
-                }
-              />
-            </label>
-            <br />
-            // 編集モードのitems管理
-            <label>積載商品リスト:</label>
+          <BlockStack gap="400">
+            {/* ステータス */}
+            <Select
+              label="ステータス"
+              value={formData.status || ""}
+              options={[
+                { label: "SI発行済", value: "SI発行済" },
+                { label: "船積スケジュール確定", value: "船積スケジュール確定" },
+                { label: "船積中", value: "船積中" },
+                { label: "輸入通関中", value: "輸入通関中" },
+                { label: "倉庫着", value: "倉庫着" }
+              ]}
+              onChange={v => setFormData(prev => ({ ...prev, status: v }))}
+            />
+            {/* 輸送手段 */}
+            <TextField
+              label="輸送手段"
+              value={formData.transport_type || ""}
+              onChange={v => setFormData(prev => ({ ...prev, transport_type: v }))}
+            />
+            {/* ETD/ETA */}
+            <TextField
+              label="ETD"
+              type="date"
+              value={formData.etd || ""}
+              onChange={v => setFormData(prev => ({ ...prev, etd: v }))}
+            />
+            <TextField
+              label="ETA"
+              type="date"
+              value={formData.eta || ""}
+              onChange={v => setFormData(prev => ({ ...prev, eta: v }))}
+            />
+            {/* 遅延 */}
+            <Select
+              label="遅延"
+              value={String(formData.delayed ?? false)}
+              options={[
+                { label: "なし", value: "false" },
+                { label: "あり", value: "true" }
+              ]}
+              onChange={v => setFormData(prev => ({ ...prev, delayed: v === "true" }))}
+            />
+            {/* 通関日・倉庫着日 */}
+            <TextField
+              label="通関日"
+              type="date"
+              value={formData.clearance_date || ""}
+              onChange={v => setFormData(prev => ({ ...prev, clearance_date: v }))}
+            />
+            <TextField
+              label="倉庫着日"
+              type="date"
+              value={formData.arrival_date || ""}
+              onChange={v => setFormData(prev => ({ ...prev, arrival_date: v }))}
+            />
+            {/* 仕入れ先 */}
+            <TextField
+              label="仕入れ先"
+              value={formData.supplier_name || ""}
+              onChange={v => setFormData(prev => ({ ...prev, supplier_name: v }))}
+            />
+            {/* メモ */}
+            <TextField
+              label="メモ"
+              multiline={3}
+              value={formData.memo || ""}
+              onChange={v => setFormData(prev => ({ ...prev, memo: v }))}
+            />
+            {/* アーカイブ */}
+            <Checkbox
+              label="アーカイブ"
+              checked={!!formData.is_archived}
+              onChange={v => setFormData(prev => ({ ...prev, is_archived: v }))}
+            />
+            {/* 積載商品リスト */}
+            <Text as="h4" variant="headingSm">積載商品リスト</Text>
             {(formData.items || []).map((item, idx) => (
-              <div key={idx} style={{ marginBottom: 8 }}>
-                <input
-                  placeholder="商品名"
+              <InlineStack key={idx} gap="200" align="center">
+                <TextField
+                  label="商品名"
                   value={item.name || ""}
-                  onChange={e => {
-                    const newItems = [...(formData.items || [])];
-                    newItems[idx].name = e.target.value;
-                    setFormData(prev => ({ ...prev, items: newItems }));
+                  onChange={v => {
+                    const items = [...formData.items];
+                    items[idx].name = v;
+                    setFormData(prev => ({ ...prev, items }));
                   }}
-                  style={{ marginRight: 8 }}
                 />
-                <input
+                <TextField
+                  label="数量"
                   type="number"
-                  placeholder="数量"
-                  value={item.quantity || ""}
-                  onChange={e => {
-                    const newItems = [...(formData.items || [])];
-                    newItems[idx].quantity = Number(e.target.value);
-                    setFormData(prev => ({ ...prev, items: newItems }));
+                  value={String(item.quantity || "")}
+                  onChange={v => {
+                    const items = [...formData.items];
+                    items[idx].quantity = Number(v);
+                    setFormData(prev => ({ ...prev, items }));
                   }}
-                  style={{ width: 80, marginRight: 8 }}
                   min={1}
                 />
-                <button
-                  type="button"
+                <Button
+                  size="slim"
+                  destructive
                   onClick={() => {
-                    const newItems = [...(formData.items || [])];
-                    newItems.splice(idx, 1);
-                    setFormData(prev => ({ ...prev, items: newItems }));
+                    const items = [...formData.items];
+                    items.splice(idx, 1);
+                    setFormData(prev => ({ ...prev, items }));
                   }}
                 >
                   削除
-                </button>
-              </div>
+                </Button>
+              </InlineStack>
             ))}
-            <button
-              type="button"
-              onClick={() => {
+            <Button
+              size="slim"
+              onClick={() =>
                 setFormData(prev => ({
                   ...prev,
-                  items: [...(prev.items || []), { name: "", quantity: "" }]
-                }));
-              }}
+                  items: [...(prev.items || []), { name: "", quantity: 1 }]
+                }))
+              }
             >
               ＋商品追加
-            </button>
-            <br />
-
-            {/* ファイルアップロード共通化 */}
+            </Button>
+            {/* ファイルアップロード */}
+            <Text as="h4" variant="headingSm">関連ファイル</Text>
             {FILE_TYPES.map(({ label, key }) => (
-                          <div key={key}>
-                            <label>{label}:
-                              <input
-                                type="file"
-                                onChange={(e) => handleFileUpload(e, key)}
-                              />
-                            </label>
-                            {formData[`${key}_url`] && (
-                              <p>
-                                <a href={formData[`${key}_url`]} target="_blank" rel="noopener noreferrer">
-                                  📄 アップロード済み{label}を見る
-                                </a>
-                                <button
-                                style={{ marginLeft: 8, color: "red" }}
-                                type="button"
-                                onClick={() => handleFileDelete(key)}
-                              >
-                                削除
-                              </button>
-                              </p>
-                            )}
-                          </div>
-                        ))}        
-
-            <br />
-            <button onClick={handleSave}>💾 保存</button>
-            <button onClick={() => setEditMode(false)}>キャンセル</button>
-          </>
+              <BlockStack key={key} gap="100">
+                <Text>{label}:</Text>
+                <input type="file" onChange={e => handleFileUpload(e, key)} />
+                {formData[`${key}_url`] && (
+                  <InlineStack gap="100">
+                    <Button url={formData[`${key}_url`]} target="_blank" external>
+                      📄 アップロード済み{label}を見る
+                    </Button>
+                    <Button size="slim" destructive onClick={() => handleFileDelete(key)}>
+                      削除
+                    </Button>
+                  </InlineStack>
+                )}
+              </BlockStack>
+            ))}
+          </BlockStack>
         ) : (
-          
-          <>
-            <p><strong>ステータス:</strong> {shipment.status}</p>
-            <p><strong>輸送手段:</strong> {shipment.transportType}</p>
-            <p><strong>ETD:</strong> {shipment.etd}</p>
-            <p><strong>ETA:</strong> {shipment.eta}</p>
-            <p><strong>遅延:</strong> {shipment.delayed ? 'あり' : 'なし'}</p>
-            <p><strong>通関日:</strong> {shipment.clearance_date || '未定'}</p>
-            <p><strong>倉庫着日:</strong> {shipment.arrival_date || '未定'}</p>
-            <p><strong>仕入れ先:</strong> {shipment.supplier_name}</p>
-            <p><strong>メモ:</strong> {shipment.memo || 'なし'}</p>
-            <p><strong>アーカイブ:</strong> {shipment.is_archived ? '✅' : '❌'}</p>
-      
-            <p><strong>積載商品リスト:</strong></p>
-            <ul>
-              {(shipment.items || []).map((item, i) => (
-                <li key={i}>{item.name}：{item.quantity}個</li>
-              ))}
-            </ul>
-            {/* ファイルリンク表示エリア */}
-            <div>
-              {shipment.invoice_url && (
-                <p>
-                  📄 <a href={shipment.invoice_url} target="_blank" rel="noopener noreferrer">
-                    Invoice ファイルを見る
-                  </a>
-                </p>
-              )}
-              {shipment.pl_url && (
-                <p>
-                  📄 <a href={shipment.pl_url} target="_blank" rel="noopener noreferrer">
-                    PL ファイルを見る
-                  </a>
-                  
-                </p>
-              )}
-              {shipment.si_url && (
-                <p>
-                  📄 <a href={shipment.si_url} target="_blank" rel="noopener noreferrer">
-                    SI ファイルを見る
-                  </a>
-                </p>
-              )}
-              {shipment.other_url && (
-                <p>
-                  📄 <a href={shipment.other_url} target="_blank" rel="noopener noreferrer">
-                    その他ファイルを見る
-                  </a>
-                </p>
-              )}
-            </div>
-
-                <button onClick={() => setEditMode(true)}>✎ 編集</button>
-          </>
-        )}
-      </div>
-    </>
+          <BlockStack gap="300">
+          <Text><b>ステータス:</b> {shipment.status}</Text>
+          <Text><b>輸送手段:</b> {shipment.transport_type}</Text>
+          <Text><b>ETD:</b> {shipment.etd}</Text>
+          <Text><b>ETA:</b> {shipment.eta}</Text>
+          <Text><b>遅延:</b> {shipment.delayed ? "あり" : "なし"}</Text>
+          <Text><b>通関日:</b> {shipment.clearance_date || "未定"}</Text>
+          <Text><b>倉庫着日:</b> {shipment.arrival_date || "未定"}</Text>
+          <Text><b>仕入れ先:</b> {shipment.supplier_name}</Text>
+          <Text><b>メモ:</b> {shipment.memo || "なし"}</Text>
+          <Text><b>アーカイブ:</b> {shipment.is_archived ? "✅" : "❌"}</Text>
+          <Text as="h4" variant="headingSm">積載商品リスト</Text>
+          <ul>
+            {(shipment.items || []).map((item, i) => (
+              <li key={i}>{item.name}：{item.quantity}個</li>
+            ))}
+          </ul>
+          <Text as="h4" variant="headingSm">関連ファイル</Text>
+          <BlockStack gap="100">
+            {shipment.invoice_url && (
+              <Button url={shipment.invoice_url} target="_blank" external>
+                Invoice ファイルを見る
+              </Button>
+            )}
+            {shipment.pl_url && (
+              <Button url={shipment.pl_url} target="_blank" external>
+                PL ファイルを見る
+              </Button>
+            )}
+            {shipment.si_url && (
+              <Button url={shipment.si_url} target="_blank" external>
+                SI ファイルを見る
+              </Button>
+            )}
+            {shipment.other_url && (
+              <Button url={shipment.other_url} target="_blank" external>
+                その他ファイルを見る
+              </Button>
+            )}
+          </BlockStack>
+        </BlockStack>
+      )}
+        </Modal.Section>
+      </Modal>
   );
 };
 
 
-export default Modal;
+export default CustomModal;
