@@ -29,19 +29,15 @@ export default function Home() {
   const POPUP_HEIGHT = 180;
   const statusOrder = ["SI発行済", "船積スケジュール確定", "船積中", "輸入通関中", "倉庫着"];
 
-  // --- 修正1: fetchShipments関数（shop_idで絞り込む関数に統一） ---
+  // 修正1: supabaseで直接取得→API経由に変更
   const fetchShipments = async (shopIdValue) => {
-    const { data, error } = await supabase
-      .from("shipments")
-      .select("*")
-      .eq("shop_id", shopIdValue);
-
-    if (error) {
-      console.error(error);
+    const res = await fetch(`/api/shipments?shop_id=${encodeURIComponent(shopIdValue)}`);
+    if (!res.ok) {
       setShipments([]);
       return;
     }
-    setShipments(data);
+    const json = await res.json();
+    setShipments(json.data || []);
   };
 
   // --- 修正2: useEffectでshopIdが変わった時だけfetchShipments実行 ---

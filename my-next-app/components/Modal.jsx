@@ -10,7 +10,7 @@ import {
   BlockStack,
   Text
 } from '@shopify/polaris';
-import { supabase } from '../supabaseClient'; // ← supabaseクライアントをインポート
+//import { supabase } from '../supabaseClient'; // ← supabaseクライアントをインポート
 
 
 const modalStyle = {
@@ -47,144 +47,198 @@ const FILE_TYPES = [
 const CustomModal = ({ shipment, onClose }) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState(shipment);
-  const [fileUrl, setFileUrl] = useState(''); // ファイルURLを保存するステート
+  //const [fileUrl, setFileUrl] = useState(''); // ファイルURLを保存するステート
   // input valueのcontrolled/uncontrolled対策
-  const getValue = (v) => v ?? "";
+  //const getValue = (v) => v ?? "";
 
   useEffect(() => {
-    if (shipment) {
-      setFormData(shipment);  // shipmentが来てから初期化
-      if (shipment.invoice_file_path) { // 例えばinvoice_file_pathに保存パスがあれば
-        // Supabase Storageの公開URLを生成
-        const url = supabase
-          .storage
-          .from('shipment-files')
-          .getPublicUrl(shipment.invoice_file_path).publicURL;
-        setFileUrl(url);
-      } else {
-        setFileUrl('');
-      }
-    }
+    if (shipment) setFormData(shipment);
   }, [shipment]);
 
   if (!shipment || !formData) return null;  // 安全確認
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+  // const handleChange = (e) => {
+  //   const { name, value, type, checked } = e.target;
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     [name]: type === "checkbox" ? checked : value,
+  //   }));
+  // };
 
   const handleSave = async () => {
-    console.log('保存するデータ:', formData);
-
-      // Supabaseに存在しないカラムを除外
-  const { invoiceFile, siFile, items, ...safeData } = formData;
-
-          // safeData に URL を明示的に追加
-      safeData.invoice_url = formData.invoice_url;
-      safeData.pl_url = formData.pl_url;
-      safeData.si_url = formData.si_url;
-      safeData.other_url = formData.other_url;
-      safeData.items = formData.items;
-
-    const { data, error } = await supabase
-      .from('shipments')
-      .upsert([safeData]); // SI NumberをPKにしていれば更新になる
-
-    if (error) {
+    const res = await fetch('/api/updateShipment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shipment: formData }),
+    });
+    const json = await res.json();
+    if (json.error) {
       alert('保存に失敗しました');
-      console.error(error);
+      console.error(json.error);
     } else {
       alert('保存しました！');
       setEditMode(false);
-      console.log('保存データ:', data);
     }
   };
 
-  // ここに handleFileUpload 関数を追加します！
-  const handleFileUpload = async (e, type) => {
+   // ファイルアップロードAPI呼び出し
+   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${formData.si_number}/${type}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage
-      .from('shipment-files')
-      .upload(filePath, file, { upsert: true });
-    if (uploadError) {
-      alert(`${type.toUpperCase()} アップロード失敗: ${uploadError.message}`);
-      console.error(uploadError);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('si_number', formData.si_number);
+    form.append('type', type);
+
+    const res = await fetch('/api/uploadShipmentFile', {
+      method: 'POST',
+      body: form,
+    });
+    const json = await res.json();
+    if (json.error) {
+      alert(`${type.toUpperCase()} アップロード失敗: ${json.error}`);
       return;
     }
-    const { data: { publicUrl } } = supabase.storage
-      .from('shipment-files')
-      .getPublicUrl(filePath);
-
-       // formDataに反映（即画面反映）
     setFormData((prev) => ({
       ...prev,
-      [`${type}_url`]: publicUrl,
+      [`${type}_url`]: json.publicUrl,
     }));
     alert(`${type.toUpperCase()} アップロード完了！`);
   };
-      // Modalコンポーネント内に追加・削除機能
-    const handleFileDelete = async (type) => {
-      const url = formData[`${type}_url`];
-      if (!url) return;
-      if (!window.confirm("本当に削除してよろしいですか？")) return;
 
-      // ファイルパスを推測（si_number/type.拡張子 形式前提）
-      const siNumber = formData.si_number;
-      const matches = url.match(/\/([^/]+)\.([a-zA-Z0-9]+)$/);
-      let filePath = "";
-      if (matches) {
-        filePath = `${siNumber}/${type}.${matches[2]}`;
-      } else {
-        alert("ファイルパスの特定に失敗しました");
-        return;
-      }
+  // ファイル削除API呼び出し
+  const handleFileDelete = async (type) => {
+    const url = formData[`${type}_url`];
+    if (!url) return;
+    if (!window.confirm("本当に削除してよろしいですか？")) return;
 
-      const { error } = await supabase
-        .storage
-        .from('shipment-files')
-        .remove([filePath]);
+    const res = await fetch('/api/deleteShipmentFile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        si_number: formData.si_number,
+        type,
+        url,
+      }),
+    });
+    const json = await res.json();
+    if (json.error) {
+      alert(`削除に失敗しました: ${json.error}`);
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      [`${type}_url`]: undefined,
+    }));
+    alert('削除しました');
+  };
 
-      if (error) {
-        alert("削除に失敗しました");
-        console.error(error);
-        return;
-      }
-      // 新しいformDataを作る
-      const newFormData = {
-        ...formData,
-        [`${type}_url`]: undefined,
-      };
+
+  //     // Supabaseに存在しないカラムを除外
+  // const { invoiceFile, siFile, items, ...safeData } = formData;
+
+  //         // safeData に URL を明示的に追加
+  //     safeData.invoice_url = formData.invoice_url;
+  //     safeData.pl_url = formData.pl_url;
+  //     safeData.si_url = formData.si_url;
+  //     safeData.other_url = formData.other_url;
+  //     safeData.items = formData.items;
+
+  //   const { data, error } = await supabase
+  //     .from('shipments')
+  //     .upsert([safeData]); // SI NumberをPKにしていれば更新になる
+
+  //   if (error) {
+  //     alert('保存に失敗しました');
+  //     console.error(error);
+  //   } else {
+  //     alert('保存しました！');
+  //     setEditMode(false);
+  //     console.log('保存データ:', data);
+  //   }
+  // };
+
+  // // ここに handleFileUpload 関数を追加します！
+  // const handleFileUpload = async (e, type) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   const fileExt = file.name.split('.').pop();
+  //   const filePath = `${formData.si_number}/${type}.${fileExt}`;
+  //   const { error: uploadError } = await supabase.storage
+  //     .from('shipment-files')
+  //     .upload(filePath, file, { upsert: true });
+  //   if (uploadError) {
+  //     alert(`${type.toUpperCase()} アップロード失敗: ${uploadError.message}`);
+  //     console.error(uploadError);
+  //     return;
+  //   }
+  //   const { data: { publicUrl } } = supabase.storage
+  //     .from('shipment-files')
+  //     .getPublicUrl(filePath);
+
+  //      // formDataに反映（即画面反映）
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     [`${type}_url`]: publicUrl,
+  //   }));
+  //   alert(`${type.toUpperCase()} アップロード完了！`);
+  // };
+  //     // Modalコンポーネント内に追加・削除機能
+  //   const handleFileDelete = async (type) => {
+  //     const url = formData[`${type}_url`];
+  //     if (!url) return;
+  //     if (!window.confirm("本当に削除してよろしいですか？")) return;
+
+  //     // ファイルパスを推測（si_number/type.拡張子 形式前提）
+  //     const siNumber = formData.si_number;
+  //     const matches = url.match(/\/([^/]+)\.([a-zA-Z0-9]+)$/);
+  //     let filePath = "";
+  //     if (matches) {
+  //       filePath = `${siNumber}/${type}.${matches[2]}`;
+  //     } else {
+  //       alert("ファイルパスの特定に失敗しました");
+  //       return;
+  //     }
+
+  //     const { error } = await supabase
+  //       .storage
+  //       .from('shipment-files')
+  //       .remove([filePath]);
+
+  //     if (error) {
+  //       alert("削除に失敗しました");
+  //       console.error(error);
+  //       return;
+  //     }
+  //     // 新しいformDataを作る
+  //     const newFormData = {
+  //       ...formData,
+  //       [`${type}_url`]: undefined,
+  //     };
 
       
-      setFormData(newFormData); // 画面も即更新
+  //     setFormData(newFormData); // 画面も即更新
 
-      alert("削除しました");
+  //     alert("削除しました");
 
-      // ここで新しいformDataでDB保存
-      // Supabaseに存在しないカラムを除外
-      const { invoiceFile, siFile, items, ...safeData } = newFormData;
-      safeData.invoice_url = newFormData.invoice_url;
-      safeData.pl_url = newFormData.pl_url;
-      safeData.si_url = newFormData.si_url;
-      safeData.other_url = newFormData.other_url;
+  //     // ここで新しいformDataでDB保存
+  //     // Supabaseに存在しないカラムを除外
+  //     const { invoiceFile, siFile, items, ...safeData } = newFormData;
+  //     safeData.invoice_url = newFormData.invoice_url;
+  //     safeData.pl_url = newFormData.pl_url;
+  //     safeData.si_url = newFormData.si_url;
+  //     safeData.other_url = newFormData.other_url;
 
-      const { error: saveError } = await supabase
-        .from('shipments')
-        .upsert([safeData]);
-      if (saveError) {
-        alert('保存に失敗しました');
-        console.error(saveError);
-      } else {
-        alert('保存しました！');
-      }
-    };
+  //     const { error: saveError } = await supabase
+  //       .from('shipments')
+  //       .upsert([safeData]);
+  //     if (saveError) {
+  //       alert('保存に失敗しました');
+  //       console.error(saveError);
+  //     } else {
+  //       alert('保存しました！');
+  //     }
+  //   };
 
   return (
     <Modal
