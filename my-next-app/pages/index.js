@@ -303,16 +303,15 @@ export default function Home() {
             columnContentTypes={['text', 'numeric']}
             headings={['商品名', '合計個数']}
             rows={getProductStats(shipments, productStatsSort).map(([name, qty]) => [
-                name,
+              <span
+              onMouseEnter={e => handleProductMouseEnter(e, name)}
+              onMouseLeave={handleProductMouseLeave}
+              style={{ cursor: "pointer", textDecoration: "underline" }}
+            >
+              {name}
+            </span>,
                 qty
             ])}
-            onRowClick={(_row, index) => {
-                // クリックされた商品名の行を特定
-                const name = getProductStats(shipments, productStatsSort)[index][0];
-                setHoveredProduct(name);
-                // ポップアップの位置は適宜調整（例: center固定など）
-                setPopupPos({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-            }}
       />
      
       {/* POPUP */}
@@ -384,9 +383,19 @@ export default function Home() {
     <>
     <Text as="h3" variant="headingMd">ステータスごとの入荷予定</Text>
       {statusOrder.map(status => {
-        const rows = (getStatusStats(shipments)[status] || []).flatMap(s =>
+        const shipmentsForStatus = getStatusStats(shipments)[status] || [];
+        const rows = shipmentsForStatus.flatMap(s =>
           (s.items || []).map(item => [
-            s.si_number, 
+            <span
+            style={{ color: "#2a5bd7", cursor: "pointer", textDecoration: "underline" }}
+            onClick={() => setSelectedShipment(s)}
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter') setSelectedShipment(s); }}
+            title="クリックで詳細"
+            key={s.si_number + item.name}
+          >
+            {s.si_number}
+          </span>, 
             item.name,
             item.quantity
           ])
@@ -398,11 +407,11 @@ export default function Home() {
               columnContentTypes={['text', 'text', 'numeric']}
               headings={['SI番号', '商品名', '数量']}
               rows={rows}
-              onRowClick={(_row, index) => {
-                const siNumber = rows[index][0];
-                const shipment = (getStatusStats(shipments)[status] || []).find(s => s.si_number === siNumber);
-                if (shipment) setSelectedShipment(shipment);
-              }}
+              //onRowClick={(_row, index) => {
+                //const siNumber = rows[index][0];
+                //const shipment = (getStatusStats(shipments)[status] || []).find(s => s.si_number === siNumber);
+                //if (shipment) setSelectedShipment(shipment);
+              //}}
             />
           </div>
         );
@@ -428,12 +437,21 @@ export default function Home() {
               <DataTable
                 columnContentTypes={['text', 'text', 'text']}
                 headings={['SI番号', 'ETA', '仕入れ先']}
-                rows={filteredShipments.map(s => [
-                  s.si_number,
+                rows={filteredShipments.map((s, idx) => [
+                  <span
+                    style={{ color: "#2a5bd7", cursor: "pointer", textDecoration: "underline" }}
+                    onClick={() => setSelectedShipment(s)}
+                    key={s.si_number}
+                    tabIndex={0}
+                    onKeyDown={e => { if (e.key === 'Enter') setSelectedShipment(s); }}
+                    title="クリックで詳細"
+                  >
+                    {s.si_number}
+                  </span>,
                   s.eta,
                   s.supplier_name
                 ])}
-                onRowClick={(_row, index) => setSelectedShipment(filteredShipments[index])}
+                //onRowClick={(_row, index) => setSelectedShipment(filteredShipments[index])}
               />
               {siQuery && filteredShipments.length === 0 && (
                 <Banner status="info">該当するSIがありません</Banner>
