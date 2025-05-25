@@ -13,29 +13,29 @@ import {
 //import { supabase } from '../supabaseClient'; // ← supabaseクライアントをインポート
 
 
-const modalStyle = {
-  position: 'fixed',
-  top: '0',
-  right: '0',
-  width: '400px',
-  maxHeight: 'calc(100vh - 32px)',
-  marginBottom: '16px',
-  backgroundColor: 'white',
-  boxShadow: '-2px 0 5px rgba(0,0,0,0.3)',
-  padding: '1rem',
-  overflowY: 'auto',
-  zIndex: 1000,
-};
+// const modalStyle = {
+//   position: 'fixed',
+//   top: '0',
+//   right: '0',
+//   width: '400px',
+//   maxHeight: 'calc(100vh - 32px)',
+//   marginBottom: '16px',
+//   backgroundColor: 'white',
+//   boxShadow: '-2px 0 5px rgba(0,0,0,0.3)',
+//   padding: '1rem',
+//   overflowY: 'auto',
+//   zIndex: 1000,
+// };
 
-const overlayStyle = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: 'rgba(0,0,0,0.3)',
-  zIndex: 999,
-};
+// const overlayStyle = {
+//   position: 'fixed',
+//   top: 0,
+//   left: 0,
+//   right: 0,
+//   bottom: 0,
+//   backgroundColor: 'rgba(0,0,0,0.3)',
+//   zIndex: 999,
+// };
 
 const FILE_TYPES = [
   { label: 'インボイスファイル', key: 'invoice' },
