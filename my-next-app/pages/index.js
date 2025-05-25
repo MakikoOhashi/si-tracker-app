@@ -6,7 +6,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { AppProvider,Page, Card, Button, ButtonGroup, DataTable, TextField, Tabs, Banner, InlineStack, BlockStack, TextContainer, Text } from '@shopify/polaris';
 import CustomModal from '@/components/Modal';
 // import { supabase } from './supabaseClient';
-import { supabase } from "@/supabaseClient";
+//import { supabase } from "@/supabaseClient";
 import StatusCard from '@/components/StatusCard';
 import StatusTable from '@/components/StatusTable';
 import OCRUploader from "@/components/OCRUploader";
