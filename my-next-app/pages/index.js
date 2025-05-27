@@ -289,6 +289,7 @@ export default function Home() {
       <div style={{ marginBottom: 12 }}>        
         <Button
           onClick={() =>
+
             setProductStatsSort(sort =>
               sort === 'name-asc' ? 'name-desc' : 'name-asc'
             )
@@ -304,6 +305,7 @@ export default function Home() {
             headings={['商品名', '合計個数']}
             rows={getProductStats(shipments, productStatsSort).map(([name, qty]) => [
               <span
+              key={name}
               onMouseEnter={e => handleProductMouseEnter(e, name)}
               onMouseLeave={handleProductMouseLeave}
               style={{ cursor: "pointer", textDecoration: "underline" }}
