@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@shopify/polaris": "^13.9.5",
     "@supabase/supabase-js": "^2.49.8",
     "formidable": "^3.5.4",
