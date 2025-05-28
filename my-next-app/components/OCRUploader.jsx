@@ -95,7 +95,7 @@ export default function OCRUploader() {
     // 正規表現で仮抽出
   function extractFields(text) {
     return {
-      si_number: text.match(/INV[#：: ]*([A-Z0-9\-]+)/i)?.[1] ?? "",
+      si_number: text.match(/(?:INV(?:OICE)?(?:\s*(?:NO\.?|#|:|：))?|INVOICE NO\.?)[\s:：#-]*([A-Z0-9\-]+)/i)?.[1] ?? "",
       supplier: text.match(/SUPPLIER[:： ]*([^\n]+)/i)?.[1] ?? "",
       eta: text.match(/ETA[:： ]*([\d\-\/]+)/i)?.[1] ?? "",
       amount: text.match(/AMOUNT[:： ]*([\d,\.]+)/i)?.[1] ?? "",
