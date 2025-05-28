@@ -1,8 +1,9 @@
 //my-next-app/components/OCRUploader.jsx
 
 import React, { useState, useEffect } from "react";
-import { Card, DropZone, Text, Spinner, TextField, Button } from "@shopify/polaris";
+import { Card, DropZone, Text, Spinner, TextField, Button, Banner } from "@shopify/polaris";
 import Tesseract from "tesseract.js";
+
 
 export default function OCRUploader() {
   const [file, setFile] = useState(null);
@@ -18,28 +19,74 @@ export default function OCRUploader() {
     eta: "",
     amount: ""
   });
+  const [error, setError] = useState("");
+
+
+
+  // PDFをCanvas画像化→OCR
+  const pdfToImageAndOcr = async (pdfFile) => {
+    try {
+      // PDFをFormDataでAPIに送る
+      const formData = new FormData();
+      formData.append("file", pdfFile);
+      const res = await fetch("/api/pdf2image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.url) throw new Error("画像変換失敗");
+  
+      // 画像URLをプレビュー用にセット
+      setImageUrl(data.url);
+  
+      // OCR
+      const { data: ocrResult } = await Tesseract.recognize(
+        window.location.origin + data.url,
+        "jpn+eng"
+      );
+      return ocrResult.text;
+    } catch (e) {
+      setError("PDFの読み込みまたはOCRに失敗しました");
+      return "";
+    }
+  };
+
+  // 画像ファイル→OCR
+  const imageToOcr = async (imgFile) => {
+    setImageUrl(URL.createObjectURL(imgFile));
+    const { data } = await Tesseract.recognize(imgFile, "jpn+eng");
+    return data.text;
+  };
+
   // 画像アップロードハンドラー
   const handleDrop = (_dropFiles, acceptedFiles, _rejectedFiles) => {
     const uploadedFile = acceptedFiles[0];
     setFile(uploadedFile);
-    setImageUrl(URL.createObjectURL(uploadedFile));
+    //setImageUrl(URL.createObjectURL(uploadedFile));
     setOcrText("");
     setOcrTextEdited("");
     setFields({ si_number: "", supplier: "", eta: "", amount: "" });
+    setError("");
+    setImageUrl("");
   };
 
   // OCR実行
   const handleOcr = async () => {
     if (!file) return;
     setLoading(true);
+    setError("");
     try {
-      const { data } = await Tesseract.recognize(file, "jpn+eng", {
-        logger: m => console.log(m), // 進捗確認用
-      });
-      setOcrText(data.text);
-      setOcrTextEdited(data.text);
-      // OCRテキストから各項目を仮抽出
-      setFields(extractFields(data.text));
+      let text = "";
+      if (file.type === "application/pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
+        text = await pdfToImageAndOcr(file);
+      } else if (file.type.startsWith("image/")) {
+        text = await imageToOcr(file);
+      } else {
+        setError("対応していないファイル形式です（画像またはPDFのみ）");
+      }
+      setOcrText(text);
+      setOcrTextEdited(text);
+      setFields(extractFields(text));
     } finally {
       setLoading(false);
     }
@@ -91,9 +138,10 @@ export default function OCRUploader() {
 
   return (
     <Card sectioned title="画像アップロード & OCR">
-      <DropZone accept="image/*" onDrop={handleDrop}>
+      {error && <Banner status="critical">{error}</Banner>}
+      <DropZone accept="image/*,application/pdf" onDrop={handleDrop}>
         {!file ? (
-          <div style={{ textAlign: "center", padding: 20, width: "100%" }}>
+          <div style={{ textAlign: "center", paddingInlineStartadding: 20, width: "100%" }}>
           <Text variant="bodyMd" as="span">
             ここに画像をドロップ、またはクリックして選択
           </Text>
