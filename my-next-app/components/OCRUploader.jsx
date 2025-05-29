@@ -15,7 +15,7 @@ export default function OCRUploader() {
   const [aiResult, setAiResult] = useState(null); // AIからのJSON
   const [fields, setFields] = useState({
     si_number: "",
-    supplier: "",
+    supplier_name: "",
     eta: "",
     amount: ""
   });
@@ -42,7 +42,7 @@ export default function OCRUploader() {
       // OCR
       const { data: ocrResult } = await Tesseract.recognize(
         window.location.origin + data.url,
-        "jpn+eng"
+        "eng"
       );
       return ocrResult.text;
     } catch (e) {
@@ -54,7 +54,7 @@ export default function OCRUploader() {
   // 画像ファイル→OCR
   const imageToOcr = async (imgFile) => {
     setImageUrl(URL.createObjectURL(imgFile));
-    const { data } = await Tesseract.recognize(imgFile, "jpn+eng");
+    const { data } = await Tesseract.recognize(imgFile, "eng");
     return data.text;
   };
 
@@ -65,7 +65,7 @@ export default function OCRUploader() {
     //setImageUrl(URL.createObjectURL(uploadedFile));
     setOcrText("");
     setOcrTextEdited("");
-    setFields({ si_number: "", supplier: "", eta: "", amount: "" });
+    setFields({ si_number: "", supplier_name: "", transport_type: "", items: []  });
     setError("");
     setImageUrl("");
   };
@@ -92,18 +92,57 @@ export default function OCRUploader() {
     }
   };
 
+    // 商品リスト部分の抽出（必要に応じて正規表現を調整）
+    function extractItems(text) {
+      const lines = text.split("\n");
+      const startIdx = lines.findIndex(l => /DESCRIPTION/i.test(l));
+      if (startIdx === -1) return [];
+      const items = [];
+      for (let i = startIdx + 1; i < lines.length; i++) {
+        // 商品名、数量を抽出（列ズレ対応のため調整可）
+        const m = lines[i].match(/^\S+\s+(.+?)\s+(\d{1,3}(?:,\d{3})*)\s+\S+\s+US\$[\d,\.]+/i);
+        if (m) {
+          items.push({ name: m[1].trim(), quantity: m[2].replace(/,/g, "") });
+        }
+      }
+      return items;
+    }
+
     // 正規表現で仮抽出
   function extractFields(text) {
     return {
-      si_number: text.match(/(?:INV(?:OICE)?(?:\s*(?:NO\.?|#|:|：))?|INVOICE NO\.?)[\s:：#-]*([A-Z0-9\-]+)/i)?.[1] ?? "",
-      supplier: text.match(/SUPPLIER[:： ]*([^\n]+)/i)?.[1] ?? "",
-      eta: text.match(/ETA[:： ]*([\d\-\/]+)/i)?.[1] ?? "",
-      amount: text.match(/AMOUNT[:： ]*([\d,\.]+)/i)?.[1] ?? "",
+      si_number: text.match(/(?:INV(?:OICE)?(?:\s*(?:NO\.?|#|:|：))?|INVOICE NO\.?)[\s:：#-]*([A-Z0-9\/\-]+)/i)?.[1] ?? "",
+      supplier_name: text.match(/(?:SUPPLIER|SHIPPER)[:： ]*([^\n]+)/i)?.[1]?.trim() ?? "",
+      transport_type: text.match(/(?:SHIPMENT PER|SHIPPED PER|TRANSPORT TYPE)[:： ]*([^\n]+)/i)?.[1]?.trim() ?? "",
+      items: extractItems(text),
     };
   }
 
    // フォーム編集
   const handleFieldChange = (key, val) => setFields(f => ({ ...f, [key]: val }));
+
+  // 商品リスト編集
+  const handleItemChange = (idx, key, value) => {
+    setFields(f => ({
+      ...f,
+      items: f.items.map((item, i) => i === idx ? { ...item, [key]: value } : item)
+    }));
+  };
+
+  const handleAddItem = () => {
+    setFields(f => ({
+      ...f,
+      items: [...f.items, { name: "", quantity: 1 }]
+    }));
+  };
+
+  const handleRemoveItem = (idx) => {
+    setFields(f => ({
+      ...f,
+      items: f.items.filter((_, i) => i !== idx)
+    }));
+  };
+
 
    // AI補助（未入力項目のみAIで補完）
   const handleAiAssist = async () => {
@@ -193,15 +232,43 @@ export default function OCRUploader() {
             {/* フォーム項目 */}
             <div style={{ marginTop: 16 }}>
               <TextField label="SI番号" value={fields.si_number} onChange={val => handleFieldChange("si_number", val)} autoComplete="off" />
-              <TextField label="仕入先" value={fields.supplier} onChange={val => handleFieldChange("supplier", val)} autoComplete="off" />
-              <TextField label="ETA" value={fields.eta} onChange={val => handleFieldChange("eta", val)} autoComplete="off" />
-              <TextField label="AMOUNT" value={fields.amount} onChange={val => handleFieldChange("amount", val)} autoComplete="off" />
+              <TextField label="仕入先" value={fields.supplier_name} onChange={val => handleFieldChange("supplier_name", val)} autoComplete="off" />
+              <TextField label="輸送手段" value={fields.transport_type} onChange={val => handleFieldChange("transport_type", val)} autoComplete="off" />
+              {/* items入力欄 */}
+              <div style={{ marginTop: 12 }}>
+                <Text variant="headingSm">商品リスト</Text>
+                {fields.items && fields.items.length > 0 ? (
+                  fields.items.map((item, idx) => (
+                    <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                      <TextField
+                        label="商品名"
+                        value={item.name}
+                        onChange={v => handleItemChange(idx, "name", v)}
+                        autoComplete="off"
+                        style={{ width: 160 }}
+                      />
+                      <TextField
+                        label="数量"
+                        type="number"
+                        value={item.quantity}
+                        onChange={v => handleItemChange(idx, "quantity", v)}
+                        autoComplete="off"
+                        style={{ width: 100 }}
+                      />
+                      <Button size="slim" destructive onClick={() => handleRemoveItem(idx)}>削除</Button>
+                    </div>
+                  ))
+                ) : (
+                  <Text color="subdued">商品データがありません</Text>
+                )}
+                <Button size="slim" onClick={handleAddItem} style={{ marginTop: 4 }}>＋商品追加</Button>
+              </div>
             </div>
             {/* AI補助ボタン */}
             <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
               <Button onClick={handleAiAssist} disabled={aiLoading}>AIで未入力項目を補完</Button>
               {aiLoading && <Spinner />}
-              <Button primary onClick={handleSaveToSupabase} disabled={!fields.si_number && !fields.supplier && !fields.eta && !fields.amount}>この内容で登録</Button>
+              <Button primary onClick={handleSaveToSupabase} disabled={!fields.si_number && !fields.supplier_name && !fields.eta && !fields.amount}>この内容で登録</Button>
             </div>
           </div>
         </div>
