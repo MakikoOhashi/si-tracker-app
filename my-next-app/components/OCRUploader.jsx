@@ -338,12 +338,12 @@ export default function OCRUploader({ shopId, onSaveSuccess }) {
   return (
     <Card sectioned title="画像アップロード & OCR">
       {error && <Banner status="critical">{error}</Banner>}
- shopId確認用（開発時のみ表示、本番では削除推奨）
+ {/* shopId確認用（開発時のみ表示、本番では削除推奨）
  {shopId && (
         <div style={{ marginBottom: 16, padding: 8, backgroundColor: "#f0f0f0", borderRadius: 4 }}>
           <Text variant="bodyMd" color="subdued">選択中の店舗ID: {shopId}</Text>
         </div>
-      )} 
+      )}  */}
 
       <DropZone accept="image/*,application/pdf" onDrop={handleDrop}>
         {!file ? (
