@@ -12,7 +12,6 @@ import StatusTable from '@/components/StatusTable';
 import OCRUploader from "@/components/OCRUploader";
 
 export default function Home() {
-    // App.jsxの中身をここにコピペ
   const [shopIdInput, setShopIdInput] = useState("test-owner");
   const [shopId, setShopId] = useState("test-owner");
   const [viewMode, setViewMode] = useState('card');
@@ -164,7 +163,10 @@ export default function Home() {
   ];
   const selectedTab = tabs.findIndex(tab => tab.id === detailViewMode);
 
-
+  // OCRUploader用のコールバック関数 - 新しい出荷データが保存された時にリフレッシュ
+  const handleOcrSaveSuccess = () => {
+    fetchShipments(shopId);
+  };
 
 
   // --- JSX ---
@@ -212,8 +214,11 @@ export default function Home() {
 
     <Page title="入荷ステータス一覧">
       
-        {/* ここにOCRアップローダーを追加 */}
-        <OCRUploader />
+        {/* ここにOCRアップローダーを追加 - shopIdを渡す */}
+        <OCRUploader 
+          shopId={shopId} 
+          onSaveSuccess={handleOcrSaveSuccess}
+        />
       
       {/* 表示切り替えボタン */}
        <Card sectioned>

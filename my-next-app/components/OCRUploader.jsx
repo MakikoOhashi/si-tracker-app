@@ -5,19 +5,19 @@ import { Card, DropZone, Text, Spinner, TextField, Button, Banner } from "@shopi
 import Tesseract from "tesseract.js";
 
 
-export default function OCRUploader() {
+export default function OCRUploader({ shopId, onSaveSuccess }) {
   const [file, setFile] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
   const [ocrText, setOcrText] = useState("");
   const [ocrTextEdited, setOcrTextEdited] = useState(""); // 編集可能なOCRテキスト
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState(null); // AIからのJSON
+  const [aiResult, setAiResult] = useState(null); 
   const [fields, setFields] = useState({
     si_number: "",
     supplier_name: "",
-    eta: "",
-    amount: ""
+    transport_type: "",
+    items: []  // JSONBとして保存される配列
   });
   const [error, setError] = useState("");
 
@@ -95,14 +95,29 @@ export default function OCRUploader() {
     // 商品リスト部分の抽出（必要に応じて正規表現を調整）
     function extractItems(text) {
       const lines = text.split("\n");
-      const startIdx = lines.findIndex(l => /DESCRIPTION/i.test(l));
-      if (startIdx === -1) return [];
       const items = [];
-      for (let i = startIdx + 1; i < lines.length; i++) {
-        // 商品名、数量を抽出（列ズレ対応のため調整可）
-        const m = lines[i].match(/^\S+\s+(.+?)\s+(\d{1,3}(?:,\d{3})*)\s+\S+\s+US\$[\d,\.]+/i);
-        if (m) {
-          items.push({ name: m[1].trim(), quantity: m[2].replace(/,/g, "") });
+      
+      // より柔軟な商品行パターンマッチング
+      for (let line of lines) {
+        // 商品コード、商品名、数量、価格のパターン
+        const patterns = [
+          // OEP-SLEDII02 LEDII028 Chip LED Blue ... Use500.00
+          /^([A-Z0-9-]+)\s+([A-Z0-9]+)\s+(.+?)\s+.*?Use(\d+\.?\d*)/i,
+          // 一般的な商品行パターン
+          /^(\S+)\s+(.+?)\s+(\d{1,3}(?:,\d{3})*)\s+.*?(\d+\.?\d*)/i
+        ];
+        
+        for (let pattern of patterns) {
+          const match = line.match(pattern);
+          if (match) {
+            items.push({
+              name: match[3] ? match[3].trim() : match[2] ? match[2].trim() : "",
+              quantity: parseInt(match[3] ? match[3].replace(/,/g, "") : "1") || 1,
+              product_code: match[1] || match[2] || "",
+              unit_price: match[4] || ""
+            });
+            break;
+          }
         }
       }
       return items;
@@ -145,39 +160,191 @@ export default function OCRUploader() {
 
 
    // AI補助（未入力項目のみAIで補完）
-  const handleAiAssist = async () => {
+   const handleAiAssist = async () => {
+    if (!ocrTextEdited.trim()) {
+      setError("OCRテキストが空です");
+      return;
+    }
+    
     setAiLoading(true);
+    setError("");
+    
     try {
+      console.log("Sending to AI:", { text: ocrTextEdited, fields }); // デバッグ用
+      
       const res = await fetch("/api/ai-parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: ocrTextEdited,
-          fields, // 現在の入力値（未入力の補完をAIに依頼）
+          fields,
         }),
       });
-      const { result } = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      console.log("AI Response:", data); // デバッグ用
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       let aiFields = {};
-      try { aiFields = JSON.parse(result); } catch { aiFields = {}; }
-      setFields(f => ({
-        ...f,
-        ...Object.fromEntries(Object.entries(aiFields).filter(([k, v]) => !f[k] && v))
-      }));
+      try {
+        aiFields = JSON.parse(data.result);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError, "Raw result:", data.result);
+        setError("AIの応答を解析できませんでした");
+        return;
+      }
+      
+      // 未入力項目のみ更新
+      setFields(currentFields => {
+        const updatedFields = { ...currentFields };
+        
+        // 各フィールドをチェックして未入力の場合のみ更新
+        Object.entries(aiFields).forEach(([key, value]) => {
+          if (key === 'items' && Array.isArray(value)) {
+            // itemsは常に上書き
+            updatedFields.items = value;
+            }
+           else if (key !== 'items') {
+            if (!currentFields[key] || currentFields[key].trim() === "") {
+              updatedFields[key] = value;
+            }
+          }
+        });
+        
+        return updatedFields;
+      });
+      
+      setAiResult(aiFields);
+      
+    } catch (error) {
+      console.error("AI assist error:", error);
+      setError(`AI補完に失敗しました: ${error.message}`);
     } finally {
       setAiLoading(false);
     }
   };
-   
- 
-    // 保存ボタン（Supabase保存処理は別途実装）
-    const handleSaveToSupabase = async () => {
-      // ここでSupabaseにformを送信する処理を書く
-      alert("保存処理を実装してください\n\n" + JSON.stringify(form, null, 2));
-    };
+  
+  const handleSaveToSupabase = async () => {
+    // shopIdの必須チェック
+    if (!shopId) {
+      setError("店舗が選択されていません");
+      return;
+    }
+    // バリデーション
+    if (!fields.si_number) {
+      setError("SI番号は必須項目です");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // データの準備
+      const shipmentData = {
+        si_number: fields.si_number,
+        supplier_name: fields.supplier_name,
+        transport_type: fields.transport_type || null,
+        items: fields.items || [],// ← JSONBカラムにそのまま保存
+        ocr_text: ocrTextEdited,
+        status: "SI発行済",
+        etd: null,
+        eta: null,
+        delayed: false,
+        clearance_date: null,
+        arrival_date: null,
+        memo: null,
+        is_archived: false,
+        shop_id: shopId, // ← 親コンポーネントから受け取ったshopIdを追加
+      };
+
+      // デバッグ：送信するデータをコンソールに出力
+      console.log('📤 送信データ:', shipmentData);
+
+      // API呼び出し
+      const res = await fetch('/api/createShipment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipment: shipmentData }),
+      });
+      
+      // デバッグ：レスポンスステータスを確認
+      console.log('📡 レスポンスステータス:', res.status);
+      console.log('📡 レスポンスOK:', res.ok);
+      
+      // レスポンステキストを取得（エラー詳細のため）
+      const responseText = await res.text();
+      console.log('📡 レスポンステキスト:', responseText);
+      
+      // HTTPステータスエラーをチェック
+      if (!res.ok) {
+        throw new Error(`APIリクエストが失敗しました (ステータス: ${res.status})\nレスポンス: ${responseText}`);
+      }
+      
+      // JSONとして解析を試行
+      let json;
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ JSON解析エラー:', parseError);
+        throw new Error(`APIレスポンスのJSON解析に失敗しました: ${responseText}`);
+      }
+      
+      console.log('📥 APIレスポンス:', json);
+      
+      // APIからのエラーメッセージをチェック
+      if (json.error) {
+        console.error('❌ APIエラー:', json.error);
+        throw new Error(`API処理エラー: ${json.error}`);
+      }
+      
+      // 成功時の処理
+      console.log('✅ 保存成功');
+      alert('データが正常に保存されました！');
+      
+      // フォームリセット
+      setFields({ si_number: "", supplier_name: "", transport_type: "", items: [] });
+      setOcrText("");
+      setOcrTextEdited("");
+      setImageUrl("");
+      setFile(null);
+
+      // 親コンポーネントのコールバック関数を呼び出し
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
+
+    } catch (error) {
+      console.error('❌ 保存エラーの詳細:', {
+        エラーメッセージ: error.message,
+        スタックトレース: error.stack,
+        フィールドデータ: fields,
+        OCRテキスト: ocrTextEdited,
+        shopId: shopId
+      });
+      setError(`保存に失敗しました: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Card sectioned title="画像アップロード & OCR">
       {error && <Banner status="critical">{error}</Banner>}
+ shopId確認用（開発時のみ表示、本番では削除推奨）
+ {shopId && (
+        <div style={{ marginBottom: 16, padding: 8, backgroundColor: "#f0f0f0", borderRadius: 4 }}>
+          <Text variant="bodyMd" color="subdued">選択中の店舗ID: {shopId}</Text>
+        </div>
+      )} 
+
       <DropZone accept="image/*,application/pdf" onDrop={handleDrop}>
         {!file ? (
           <div style={{ textAlign: "center", paddingInlineStartadding: 20, width: "100%" }}>
@@ -242,7 +409,7 @@ export default function OCRUploader() {
                     <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
                       <TextField
                         label="商品名"
-                        value={item.name}
+                        value={item.name || ""}
                         onChange={v => handleItemChange(idx, "name", v)}
                         autoComplete="off"
                         style={{ width: 160 }}
@@ -250,7 +417,7 @@ export default function OCRUploader() {
                       <TextField
                         label="数量"
                         type="number"
-                        value={item.quantity}
+                        value={item.quantity || ""}
                         onChange={v => handleItemChange(idx, "quantity", v)}
                         autoComplete="off"
                         style={{ width: 100 }}
